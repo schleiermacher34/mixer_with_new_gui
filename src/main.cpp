@@ -289,5 +289,5 @@ void setup()
 void loop()
 {
     // Serial.println("Loop");
-    sleep(1);
+    sleep(5);
 }
