@@ -306,8 +306,8 @@ void ui_Screen1_screen_init(void)
 
     lv_obj_add_event_cb(ui_starstopbutton, ui_event_starstopbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_modebutton, ui_event_modebutton, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_modebutton4, ui_event_modebutton4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_modebutton7, ui_event_modebutton7, LV_EVENT_ALL, NULL);
+    //lv_obj_add_event_cb(ui_modebutton4, ui_event_modebutton4, LV_EVENT_ALL, NULL);
+    //lv_obj_add_event_cb(ui_modebutton7, ui_event_modebutton7, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_rotationbutton, ui_event_rotationbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_speedchange, ui_event_speedchange, LV_EVENT_ALL, NULL);
     

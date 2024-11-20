@@ -29,7 +29,7 @@
 #define LVGL_TASK_MIN_DELAY_MS  (1)
 #define LVGL_TASK_STACK_SIZE    (4 * 1024)
 #define LVGL_TASK_PRIORITY      (2)
-#define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * 20)
+#define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * ESP_PANEL_LCD_V_RES / 10)
 
 ESP_Panel *panel = NULL;
 SemaphoreHandle_t lvgl_mux = NULL;                  // LVGL mutex
@@ -198,96 +198,92 @@ void ui_event_modebutton3(lv_event_t *e) {
 
 
 
-void setup()
-{
-    Serial.begin(115200); /* prepare for possible serial debug */
+void setup() {
+    Serial.begin(115200); // Start serial communication for debugging
+    Serial.println("Starting setup...");
 
+    // Display LVGL version
     String LVGL_Arduino = "Hello LVGL! ";
     LVGL_Arduino += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-
     Serial.println(LVGL_Arduino);
-    Serial.println("I am ESP32_Display_Panel");
 
+    // Initialize the panel object
     panel = new ESP_Panel();
 
-    /* Initialize LVGL core */
+    // Initialize LVGL core
     lv_init();
 
-    /* Initialize LVGL buffers */
+    // Allocate LVGL buffer
     static lv_disp_draw_buf_t draw_buf;
-    /* Using double buffers is more faster than single buffer */
-    /* Using internal SRAM is more fast than PSRAM (Note: Memory allocated using `malloc` may be located in PSRAM.) */
-    uint8_t *buf = (uint8_t *)heap_caps_calloc(1, LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_INTERNAL);
-    assert(buf);
+    uint8_t *buf = (uint8_t *)heap_caps_malloc(LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+    if (!buf) {
+        // Fallback to internal memory if PSRAM allocation fails
+        buf = (uint8_t *)heap_caps_calloc(1, LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_INTERNAL);
+        if (!buf) {
+            Serial.println("Failed to allocate display buffer!");
+            while (true); // Halt execution for debugging
+        }
+    }
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_BUF_SIZE);
 
-    /* Initialize the display device */
+    // Initialize the display device
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
-    /* Change the following line to your display resolution */
-    disp_drv.hor_res = ESP_PANEL_LCD_H_RES;
-    disp_drv.ver_res = ESP_PANEL_LCD_V_RES;
-    disp_drv.flush_cb = lvgl_port_disp_flush;
+    disp_drv.hor_res = ESP_PANEL_LCD_H_RES; // Set the horizontal resolution
+    disp_drv.ver_res = ESP_PANEL_LCD_V_RES; // Set the vertical resolution
+    disp_drv.flush_cb = lvgl_port_disp_flush; // Set the flush callback
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);
 
 #if ESP_PANEL_USE_LCD_TOUCH
-    /* Initialize the input device */
+    // Initialize touch input
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
     indev_drv.read_cb = lvgl_port_tp_read;
     lv_indev_drv_register(&indev_drv);
 #endif
-    /* Initialize bus and device of panel */
+
+    // Initialize the panel
     panel->init();
+
 #if ESP_PANEL_LCD_BUS_TYPE != ESP_PANEL_BUS_TYPE_RGB
-    /* Register a function to notify LVGL when the panel is ready to flush */
-    /* This is useful for refreshing the screen using DMA transfers */
+    // Register callback for DMA flush ready
     panel->getLcd()->setCallback(notify_lvgl_flush_ready, &disp_drv);
 #endif
 
-    /**
-     * These development boards require the use of an IO expander to configure the screen,
-     * so it needs to be initialized in advance and registered with the panel for use.
-     *
-     */
-    Serial.println("Initialize IO expander");
-    /* Initialize IO expander */
-    // ESP_IOExpander *expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000, I2C_MASTER_SCL_IO, I2C_MASTER_SDA_IO);
+    // Initialize IO expander if required by the board
+    Serial.println("Initialize IO expander...");
     ESP_IOExpander *expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000);
     expander->init();
     expander->begin();
     expander->multiPinMode(TP_RST | LCD_BL | LCD_RST | SD_CS | USB_SEL, OUTPUT);
     expander->multiDigitalWrite(TP_RST | LCD_BL | LCD_RST | SD_CS, HIGH);
+    expander->digitalWrite(USB_SEL, LOW); // Configure USB_SEL pin
+    panel->addIOExpander(expander); // Add expander to the panel
 
-    // Turn off backlight
-    // expander->digitalWrite(USB_SEL, LOW);
-    expander->digitalWrite(USB_SEL, LOW);
-    /* Add into panel */
-    panel->addIOExpander(expander);
-
-    /* Start panel */
+    // Start the panel
     panel->begin();
 
-    /* Create a task to run the LVGL task periodically */
+    // Create a mutex for LVGL to ensure thread safety
     lvgl_mux = xSemaphoreCreateRecursiveMutex();
+
+    // Create a task for LVGL periodic handling
     xTaskCreate(lvgl_port_task, "lvgl", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
 
-    /* Lock the mutex due to the LVGL APIs are not thread-safe */
+    // Lock LVGL while initializing the UI
     lvgl_port_lock(-1);
-
-    
-    ui_init();
-
-    /* Release the mutex */
+    ui_init(); // Initialize the UI (from your generated ui.h)
     lvgl_port_unlock();
 
-    Serial.println("Setup done");
+    Serial.println("Setup done.");
 }
 
-void loop()
-{
-    // Serial.println("Loop");
-    sleep(5);
+
+
+void loop() {
+    // LVGL periodic task handler
+    lv_timer_handler();
+    delay(5); // Small delay to avoid excessive CPU usage
 }
+
