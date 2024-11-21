@@ -213,17 +213,19 @@ void setup() {
     // Initialize LVGL core
     lv_init();
 
-    // Allocate LVGL buffer
     static lv_disp_draw_buf_t draw_buf;
-    uint8_t *buf = (uint8_t *)heap_caps_malloc(LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+
+    // Allocate LVGL buffer
+uint8_t *buf = (uint8_t *)heap_caps_malloc(LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+if (!buf) {
+    // Fallback to internal memory if PSRAM allocation fails
+    buf = (uint8_t *)heap_caps_calloc(1, LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_INTERNAL);
     if (!buf) {
-        // Fallback to internal memory if PSRAM allocation fails
-        buf = (uint8_t *)heap_caps_calloc(1, LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_INTERNAL);
-        if (!buf) {
-            Serial.println("Failed to allocate display buffer!");
-            while (true); // Halt execution for debugging
-        }
+        Serial.println("Failed to allocate display buffer!");
+        while (true); // Halt execution for debugging
     }
+}
+
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_BUF_SIZE);
 
     // Initialize the display device
