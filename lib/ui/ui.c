@@ -7,6 +7,7 @@
 #include "ui_helpers.h"
 
 
+
 ///////////////////// VARIABLES ////////////////////
 
 
@@ -106,6 +107,9 @@ lv_obj_t * ui_Panelline13;
 lv_obj_t * ui_Panelline14;
 lv_obj_t * ui_Panelline15;
 lv_obj_t * ui_Panelline16;
+lv_obj_t * ui_Buttonleftline;
+lv_obj_t * ui_Buttonrightline;
+lv_obj_t * ui_cleanbutton;
 void ui_event_Button3(lv_event_t * e);
 lv_obj_t * ui_Button3;
 lv_obj_t * ui_Label9;
@@ -119,6 +123,9 @@ void ui_event_modebutton2(lv_event_t * e);
 lv_obj_t * ui_modebutton2;
 lv_obj_t * ui_Label12;
 void ui_event_modebutton3(lv_event_t *e);
+void ui_event_Buttonrightline(lv_event_t *e);
+void ui_event_Buttonleftline(lv_event_t *e);
+void ui_event_cleanbutton(lv_event_t *e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -178,6 +185,15 @@ lv_obj_t * ui_Button5;
 lv_obj_t * ui_Image21;
 lv_obj_t * ui_Label33;
 lv_obj_t * ui_Label35;
+lv_obj_t * ui_BACKTOSETUP4;
+lv_obj_t * ui_setuptimebutton2;
+lv_obj_t * ui_rollerseconds2;
+lv_obj_t * ui_secondslabel2;
+lv_obj_t * ui_minuteslabel2;
+lv_obj_t * ui_rollerminutes2;
+void ui_event_Button8(lv_event_t *e);
+void ui_event_Button5(lv_event_t *e);
+void ui_event_modebutton8(lv_event_t *e);
 
 // SCREEN: ui_Screen5
 void ui_Screen5_screen_init(void);
@@ -306,15 +322,13 @@ lv_obj_t * ui_rpmvalue4;
 // SCREEN: ui_Screen9
 void ui_Screen9_screen_init(void);
 lv_obj_t * ui_Screen9;
-lv_obj_t * ui_Keyboard2;
-void ui_event_Button6(lv_event_t * e);
-lv_obj_t * ui_Button6;
-lv_obj_t * ui_Image8;
-lv_obj_t * ui_timevaluemin;
 lv_obj_t * ui_minuteslabel;
-lv_obj_t * ui_twodotslabel;
-lv_obj_t * ui_timevaluemin2;
 lv_obj_t * ui_secondslabel;
+lv_obj_t * ui_rollerminutes;
+lv_obj_t * ui_rollerseconds;
+void ui_event_setuptimebutton(lv_event_t * e);
+lv_obj_t * ui_setuptimebutton;
+lv_obj_t * ui_BACKTOSETUP3;
 lv_obj_t * ui____initial_actions0;
 
 const lv_img_dsc_t * ui_imgset_vector[1] = {&ui_img_vector2_png};
@@ -485,14 +499,14 @@ void ui_eventhandler_modebutton3(lv_event_t * e)
 }
 void ui_event_modebutton3(lv_event_t *e);
 
-// void ui_event_Button6(lv_event_t * e)
-// {
-//     lv_event_code_t event_code = lv_event_get_code(e);
-//     lv_obj_t * target = lv_event_get_target(e);
-//     if(event_code == LV_EVENT_CLICKED) {
-//         _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
-//     }
-// }
+ void ui_event_Button6(lv_event_t * e)
+ {
+     lv_event_code_t event_code = lv_event_get_code(e);
+     lv_obj_t * target = lv_event_get_target(e);
+     if(event_code == LV_EVENT_CLICKED) {
+         _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+     }
+ }
 void ui_event_Button7(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -536,6 +550,25 @@ void ui_event_Button11(lv_event_t * e)
         _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen4_screen_init);
     }
 }
+
+void ui_event_rotationbutton3(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_rotationdirection5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_rotationdirection2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_rotationbutton4(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_rotationdirection4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_rotationdirection7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
 void ui_event_speedbutton1(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -568,7 +601,7 @@ void ui_event_speedbutton5(lv_event_t * e)
         _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
     }
 }
-void ui_event_Button6(lv_event_t * e)
+void ui_event_setuptimebutton(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
@@ -576,6 +609,202 @@ void ui_event_Button6(lv_event_t * e)
         _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
     }
 }
+
+
+void ui_event_wifibutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_Screen7, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen7_screen_init);
+    }
+}
+void ui_event_updatebutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_Panel5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Panel6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_Button12(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_logbutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_Panel5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Panel6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_errorbutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_Panel5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Panel6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_backtosetupbutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_Screen6, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen6_screen_init);
+    }
+}
+void ui_event_Switch1(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_fhewiofiokwef, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_onlab, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_offlab, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Imagenowifi, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Roller1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_passwordarea, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Checkbox1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_wifissid, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_backtosetupbutton2(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_passwordarea(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_passwordboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Checkbox1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_okbutton(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_passwordboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_backcustom(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_rotationbutton1(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_flag_modify(ui_rotationdirection3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_rotationdirection1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_Buttonrightline(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label9);
+    int current_value = atoi(label_text);
+
+    // Define maximum value
+    int max_value = 60; // Adjust this based on your requirement
+
+    // Increment the value if it's below the maximum
+    if (current_value < max_value) {
+        current_value++;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label9, new_value); // Update the label
+    }
+}
+
+void ui_event_Buttonleftline(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label9);
+    int current_value = atoi(label_text);
+
+    // Define minimum value
+    int min_value = 10; // Adjust this based on your requirement
+
+    // Decrement the value if it's above the minimum
+    if (current_value > min_value) {
+        current_value--;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label9, new_value); // Update the label
+    }
+}
+void ui_event_cleanbutton(lv_event_t *e)
+{
+    lv_label_set_text(ui_Label9,"10");
+}
+void ui_event_modebutton8(lv_event_t *e)
+{
+    lv_obj_add_flag(ui_BACKTOSETUP4, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_setuptimebutton2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_rollerseconds2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_secondslabel2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_minuteslabel2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_rollerminutes2, _UI_MODIFY_FLAG_TOGGLE);
+
+    lv_obj_add_flag(ui_Label35, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label33, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image21, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Button5, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image20, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Button8, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label31, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image19, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel20, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label34, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_modebutton8, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image14, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel9, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label29, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label32, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image18, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel19, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_rotationbutton2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label27, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label30, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image16, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel17, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_speedchange3, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Label28, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image15, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel16, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Button4, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Image12, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Panel15, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_Button7, _UI_MODIFY_FLAG_TOGGLE);
+
+
+}
+
 ///////////////////// SCREENS ////////////////////
 
 void ui_init(void)

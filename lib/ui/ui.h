@@ -119,6 +119,9 @@ extern lv_obj_t * ui_Label12;
 extern lv_obj_t * ui_Labelclean;
 extern lv_obj_t * ui_eneterbutton;
 extern lv_obj_t * ui_enterlabel;
+extern lv_obj_t * ui_Buttonleftline;
+extern lv_obj_t * ui_Buttonrightline;
+extern lv_obj_t * ui_cleanbutton;
 void ui_event_Button3(lv_event_t * e);
 extern lv_obj_t * ui_Button3;
 extern lv_obj_t * ui_Label9;
@@ -132,6 +135,10 @@ void ui_event_modebutton2(lv_event_t * e);
 extern lv_obj_t * ui_modebutton2;
 extern lv_obj_t * ui_Label12;
 void ui_event_modebutton3(lv_event_t *e);
+void ui_event_Buttonrightline(lv_event_t *e);
+void ui_event_Buttonleftline(lv_event_t *e);
+void ui_event_cleanbutton(lv_event_t *e);
+
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
 extern lv_obj_t * ui_Screen3;
@@ -189,6 +196,15 @@ extern lv_obj_t * ui_Button5;
 extern lv_obj_t * ui_Image21;
 extern lv_obj_t * ui_Label33;
 extern lv_obj_t * ui_Label35;
+extern lv_obj_t * ui_BACKTOSETUP4;
+extern lv_obj_t * ui_setuptimebutton2;
+extern lv_obj_t * ui_rollerseconds2;
+extern lv_obj_t * ui_secondslabel2;
+extern lv_obj_t * ui_minuteslabel2;
+extern lv_obj_t * ui_rollerminutes2;
+void ui_event_Button8(lv_event_t *e);
+void ui_event_Button5(lv_event_t *e);
+void ui_event_modebutton8(lv_event_t *e);
 // SCREEN: ui_Screen5
 void ui_Screen5_screen_init(void);
 extern lv_obj_t * ui_Screen5;
@@ -314,15 +330,13 @@ extern lv_obj_t * ui_rpmvalue4;
 // SCREEN: ui_Screen9
 void ui_Screen9_screen_init(void);
 extern lv_obj_t * ui_Screen9;
-extern lv_obj_t * ui_Keyboard2;
-void ui_event_Button6(lv_event_t * e);
-extern lv_obj_t * ui_Button6;
-extern lv_obj_t * ui_Image8;
-extern lv_obj_t * ui_timevaluemin;
 extern lv_obj_t * ui_minuteslabel;
-extern lv_obj_t * ui_twodotslabel;
-extern lv_obj_t * ui_timevaluemin2;
 extern lv_obj_t * ui_secondslabel;
+extern lv_obj_t * ui_rollerminutes;
+extern lv_obj_t * ui_rollerseconds;
+void ui_event_setuptimebutton(lv_event_t * e);
+extern lv_obj_t * ui_setuptimebutton;
+extern lv_obj_t * ui_BACKTOSETUP3;
 extern lv_obj_t * ui____initial_actions0;
 
 
@@ -347,6 +361,7 @@ LV_IMG_DECLARE(ui_img_nowifi_png);    // assets/nowifi.png
 LV_IMG_DECLARE(ui_img_rectangle_582_png);    // assets/Rectangle 582.png
 LV_IMG_DECLARE(ui_img_169476923);    // assets/Rectangle 582 (1).png
 LV_IMG_DECLARE(ui_img_169479996);    // assets/Rectangle 582 (2).png
+
 
 
 

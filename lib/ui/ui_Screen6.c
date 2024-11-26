@@ -265,5 +265,6 @@ void ui_Screen6_screen_init(void)
     lv_obj_add_event_cb(ui_Button12, ui_event_Button12, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_logbutton, ui_event_logbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_errorbutton, ui_event_errorbutton, LV_EVENT_ALL, NULL);
+    
 
 }

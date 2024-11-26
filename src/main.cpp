@@ -3,6 +3,21 @@
 #include <ESP_Panel_Library.h>
 #include <ESP_IOExpander_Library.h>
 #include <ui.h>
+#include "esp_log.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <Update.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <ArduinoJson.h>
+#include <nvs.h>
+#include <nvs_flash.h>
+#include "esp_ota_ops.h"  // Include ESP-IDF OTA operations
+#include <ModbusRTU.h>    // Include emelianov's ModbusRTU library
+#include <esp_system.h>
+#include <esp_partition.h>
+#include <mbedtls/sha256.h>
 
 // Extend IO Pin define
 #define TP_RST 1
@@ -33,6 +48,9 @@
 
 ESP_Panel *panel = NULL;
 SemaphoreHandle_t lvgl_mux = NULL;                  // LVGL mutex
+SemaphoreHandle_t wifi_scan_semaphore = NULL;
+SemaphoreHandle_t wifi_connect_semaphore = NULL;
+SemaphoreHandle_t wifi_mutex;
 
 #if ESP_PANEL_LCD_BUS_TYPE == ESP_PANEL_BUS_TYPE_RGB
 /* Display flushing */
@@ -109,6 +127,210 @@ void lvgl_port_task(void *arg)
     }
 }
 
+void wifi_connect_task(void *pvParameters) {
+    while (1) {
+        // Wait for the semaphore to be given
+        if (xSemaphoreTake(wifi_connect_semaphore, portMAX_DELAY)) {
+            Serial.println("Wi-Fi connect task started.");
+
+            // Initialize buffers
+            char ssid[64] = {0};
+            char password[64] = {0};
+
+            // Lock LVGL before accessing UI elements
+            lvgl_port_lock(portMAX_DELAY);
+
+            // Get the selected SSID from the dropdown
+            if (ui_Roller1 != NULL) {
+                lv_dropdown_get_selected_str(ui_Roller1, ssid, sizeof(ssid));
+                Serial.print("Selected SSID: ");
+                Serial.println(ssid);
+            } else {
+                Serial.println("Error: ui_Screen2_Dropdown2 is NULL");
+                lvgl_port_unlock();
+                continue; // Skip this iteration
+            }
+
+            // Get the password from the TextArea
+            const char *password_tmp = NULL;
+            if (ui_passwordarea != NULL) {
+                password_tmp = lv_textarea_get_text(ui_passwordarea);
+            } else {
+                Serial.println("Error: ui_Screen2_TextArea2 is NULL");
+                lvgl_port_unlock();
+                continue; // Skip this iteration
+            }
+
+            // Unlock LVGL after accessing UI elements
+            lvgl_port_unlock();
+
+            // Check if password_tmp is NULL
+            if (password_tmp == NULL) {
+                Serial.println("Error: Password input is NULL");
+                password[0] = '\0';
+            } else {
+                // Copy the password safely
+                strncpy(password, password_tmp, sizeof(password) - 1);
+                password[sizeof(password) - 1] = '\0'; // Ensure null-termination
+            }
+
+            // Check if SSID is empty
+            if (strlen(ssid) == 0) {
+                Serial.println("Error: SSID is empty");
+                lvgl_port_lock(portMAX_DELAY);
+                //lv_label_set_text(ui_Screen2_Label7, "SSID is empty. Please select a network.");
+                lvgl_port_unlock();
+                continue; // Skip this iteration
+            }
+
+            // Safely print the SSID and password lengths
+            Serial.print("Attempting to connect to SSID: ");
+            Serial.println(ssid);
+            Serial.print("Using password: ");
+            Serial.println(password);
+            Serial.printf("SSID length: %u\n", strlen(ssid));
+            Serial.printf("Password length: %u\n", strlen(password));
+
+            // Acquire the Wi-Fi mutex before accessing Wi-Fi functions
+            if (xSemaphoreTake(wifi_mutex, portMAX_DELAY)) {
+                // Disconnect before attempting new connection
+                WiFi.disconnect(true); // The 'true' parameter tells WiFi to erase old connection data
+
+                // Delay briefly to ensure disconnect completes
+                delay(100);
+
+                // Attempt to connect to the selected network
+                if (strlen(password) == 0) {
+                    Serial.println("No password provided, connecting without password.");
+                    WiFi.begin(ssid); // Connect without password
+                } else {
+                    WiFi.begin(ssid, password);
+                }
+
+                // Wait for connection
+                int attempts = 0;
+                while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+                    delay(500);
+                    Serial.print(".");
+                    attempts++;
+                }
+
+                // Release the Wi-Fi mutex after Wi-Fi operations
+                xSemaphoreGive(wifi_mutex);
+
+                // Check if connected
+                if (WiFi.status() == WL_CONNECTED) {
+                    Serial.println("\nWi-Fi connected successfully!");
+                    Serial.print("IP address: ");
+                    Serial.println(WiFi.localIP());
+
+                    // Lock LVGL before accessing UI elements
+                    lvgl_port_lock(portMAX_DELAY);
+
+                //     // Check if the checkbox is checked
+                //   //  bool savePassword = lv_obj_has_state(ui_Screen2_Checkbox1, LV_STATE_CHECKED);
+
+                //     // Unlock LVGL
+                //     lvgl_port_unlock();
+
+                //     if (savePassword) {
+                //         Serial.println("Saving Wi-Fi credentials to NVS.");
+                //         // Acquire the NVS mutex before writing to NVS
+                //         xSemaphoreTake(nvs_mutex, portMAX_DELAY);
+                //         saveWifiCredentialsToNVS(ssid, password);
+                //         xSemaphoreGive(nvs_mutex);
+                //     }
+
+                    // Update the UI with connection success
+                    lvgl_port_lock(portMAX_DELAY);
+                    lv_label_set_text(ui_backtosetupbutton2, "Connected to network");
+                    lvgl_port_unlock();
+
+                } else {
+                    Serial.println("\nWi-Fi connection failed.");
+
+                    // Update the UI with connection failure
+                    lvgl_port_lock(portMAX_DELAY);
+                    lv_label_set_text(ui_backtosetupbutton2, "Failed to connect to network");
+                    lvgl_port_unlock();
+                }
+            } else {
+                Serial.println("Failed to acquire Wi-Fi mutex. Cannot perform Wi-Fi operations.");
+                // Optionally update UI to inform the user
+                lvgl_port_lock(portMAX_DELAY);
+                lv_label_set_text(ui_backtosetupbutton2, "Wi-Fi is busy. Try again later.");
+                lvgl_port_unlock();
+            }
+        }
+    }
+}
+
+void wifi_scan_task(void *pvParameters) {
+    while (1) {
+        // Wait for the semaphore to be given
+        if (xSemaphoreTake(wifi_scan_semaphore, portMAX_DELAY)) {
+            // Acquire the Wi-Fi mutex
+            if (xSemaphoreTake(wifi_mutex, portMAX_DELAY)) {
+                Serial.println("Starting WiFi scan...");
+
+                // Clear existing dropdown items
+                lvgl_port_lock(-1);
+                lv_dropdown_clear_options(ui_Roller1);
+                lvgl_port_unlock();
+
+                // Set Wi-Fi mode to station mode
+                WiFi.mode(WIFI_STA);
+
+                // Start Wi-Fi scan
+                int n = WiFi.scanNetworks();  // Scan for available networks
+                Serial.println("Scan completed");
+
+                // Check if any networks were found
+                if (n == 0) {
+                    Serial.println("No networks found");
+                    lvgl_port_lock(-1);
+                    lv_dropdown_set_options(ui_Roller1, "No networks found");
+                    lvgl_port_unlock();
+                } else {
+                    Serial.printf("%d networks found:\n", n);
+                    String ssidList = "";  // Initialize empty string for storing SSIDs
+
+                    // Loop through the found networks and append them to ssidList
+                    for (int i = 0; i < n; ++i) {
+                        String ssid = WiFi.SSID(i);  // Get the SSID of the network
+                        Serial.printf("%d: %s (%d dBm)\n", i + 1, ssid.c_str(), WiFi.RSSI(i));
+                        ssidList += ssid + "\n";  // Add a newline for each SSID
+                    }
+
+                    // Update dropdown options with available SSIDs
+                    lvgl_port_lock(-1);
+                    lv_dropdown_set_options(ui_Roller1, ssidList.c_str());
+                    lvgl_port_unlock();
+                }
+
+                WiFi.scanDelete();  // Clean up the scanned networks from memory
+
+                // Release the Wi-Fi mutex
+                xSemaphoreGive(wifi_mutex);
+            }
+        }
+    }
+}
+
+/* Event Handlers for Wi-Fi Buttons */
+void event_handler_scan_button(lv_event_t * e) {
+    Serial.println("Scan button pressed, giving semaphore to WiFi scan task...");
+    xSemaphoreGive(wifi_scan_semaphore);  // Unblock the Wi-Fi scan task
+}
+
+void event_handler_connect_button(lv_event_t * e) {
+    Serial.println("Connect button pressed, giving semaphore to Wi-Fi connection task...");
+    if (wifi_connect_semaphore != NULL) {
+        xSemaphoreGive(wifi_connect_semaphore);  // Unblock the Wi-Fi connection task
+    } else {
+        Serial.println("Error: wifi_connect_semaphore is NULL");
+    }
+}
 
 void update_panel_colors(uint16_t min, uint16_t max) {
     // Get the value from ui_Label9
@@ -195,9 +417,59 @@ void ui_event_modebutton3(lv_event_t *e) {
 }
 
 
+void WiFiEvent(WiFiEvent_t event) {
+    switch (event) {
+        case SYSTEM_EVENT_STA_GOT_IP:
+            Serial.println("Wi-Fi connected. IP address: ");
+            Serial.println(WiFi.localIP());
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:
+            Serial.println("Wi-Fi lost connection");
+            // Try to reconnect
+            WiFi.reconnect();
+            break;
+        default:
+            break;
+    }
+}
 
+void ui_event_Button5(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label35);
+    int current_value = atoi(label_text);
 
+    // Define the maximum value
+    int max_value = 6;
+    int min = 10;
+    int max = 60;
+    // Increment the value if it's below the maximum
+    if (current_value < max_value) {
+        current_value++;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label35, new_value); // Update the label
+        update_panel_colors(min, max);
+    }
+}
 
+void ui_event_Button8(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label35);
+    int current_value = atoi(label_text);
+
+    // Define the minimum value
+    int min_value = 1;
+    int min = 10;
+    int max = 60;
+    // Decrement the value if it's above the minimum
+    if (current_value > min_value) {
+        current_value--;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label35, new_value); // Update the label
+        update_panel_colors(min, max);
+    }
+}
 void setup() {
     Serial.begin(115200); // Start serial communication for debugging
     Serial.println("Starting setup...");
@@ -225,6 +497,11 @@ if (!buf) {
         while (true); // Halt execution for debugging
     }
 }
+if (ui_Switch1) {
+        lv_obj_add_event_cb(ui_Switch1, event_handler_scan_button, LV_EVENT_CLICKED, NULL);
+    } else {
+        Serial.println("ui_Switch1 is NULL");
+    }
 
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_BUF_SIZE);
 
@@ -267,11 +544,22 @@ if (!buf) {
     // Start the panel
     panel->begin();
 
+    // Initialize Wi-Fi in station mode
+    WiFi.mode(WIFI_STA);
+    WiFi.onEvent(WiFiEvent);
+    WiFi.disconnect();
+
+    delay(100); // Short delay to ensure Wi-Fi is initialized
+
     // Create a mutex for LVGL to ensure thread safety
     lvgl_mux = xSemaphoreCreateRecursiveMutex();
+    wifi_connect_semaphore = xSemaphoreCreateBinary();
+    wifi_mutex = xSemaphoreCreateMutex();
 
     // Create a task for LVGL periodic handling
     xTaskCreate(lvgl_port_task, "lvgl", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
+    // xTaskCreate(wifi_scan_task, "WiFi Scan Task", 4096 * 2, NULL, 1, NULL);
+    // xTaskCreate(wifi_connect_task, "WiFi Connect Task", 2046, NULL, 1, NULL);
 
     // Lock LVGL while initializing the UI
     lvgl_port_lock(-1);

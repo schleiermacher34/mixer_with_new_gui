@@ -12,99 +12,95 @@ void ui_Screen9_screen_init(void)
     lv_obj_set_style_bg_color(ui_Screen9, lv_color_hex(0x202429), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Screen9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Keyboard2 = lv_keyboard_create(ui_Screen9);
-    lv_keyboard_set_mode(ui_Keyboard2, LV_KEYBOARD_MODE_NUMBER);
-    lv_obj_set_width(ui_Keyboard2, 782);
-    lv_obj_set_height(ui_Keyboard2, 318);
-    lv_obj_set_x(ui_Keyboard2, -3);
-    lv_obj_set_y(ui_Keyboard2, 81);
-    lv_obj_set_align(ui_Keyboard2, LV_ALIGN_CENTER);
-    lv_obj_set_style_radius(ui_Keyboard2, 40, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Keyboard2, lv_color_hex(0x202429), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Keyboard2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Keyboard2, lv_color_hex(0x313841), LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Keyboard2, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(ui_Keyboard2, lv_color_hex(0xE63029), LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Keyboard2, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Keyboard2, &lv_font_montserrat_32, LV_PART_ITEMS | LV_STATE_DEFAULT);
-
-    ui_Button6 = lv_btn_create(ui_Keyboard2);
-    lv_obj_set_width(ui_Button6, 291);
-    lv_obj_set_height(ui_Button6, 148);
-    lv_obj_set_x(ui_Button6, 234);
-    lv_obj_set_y(ui_Button6, -76);
-    lv_obj_set_align(ui_Button6, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_Button6, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_clear_flag(ui_Button6, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_Button6, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Button6, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Button6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Image8 = lv_img_create(ui_Button6);
-    lv_img_set_src(ui_Image8, &ui_img_enter_line_png);
-    lv_obj_set_width(ui_Image8, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Image8, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Image8, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_Image8, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
-    lv_obj_clear_flag(ui_Image8, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-
-    ui_timevaluemin = lv_textarea_create(ui_Screen9);
-    lv_obj_set_width(ui_timevaluemin, 234);
-    lv_obj_set_height(ui_timevaluemin, LV_SIZE_CONTENT);    /// 94
-    lv_obj_set_x(ui_timevaluemin, -187);
-    lv_obj_set_y(ui_timevaluemin, -136);
-    lv_obj_set_align(ui_timevaluemin, LV_ALIGN_CENTER);
-    lv_textarea_set_placeholder_text(ui_timevaluemin, "Enter time value in minutes");
-    lv_textarea_set_one_line(ui_timevaluemin, true);
-
-
-
     ui_minuteslabel = lv_label_create(ui_Screen9);
     lv_obj_set_width(ui_minuteslabel, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_minuteslabel, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_minuteslabel, -192);
-    lv_obj_set_y(ui_minuteslabel, -182);
+    lv_obj_set_x(ui_minuteslabel, -91);
+    lv_obj_set_y(ui_minuteslabel, -158);
     lv_obj_set_align(ui_minuteslabel, LV_ALIGN_CENTER);
     lv_label_set_text(ui_minuteslabel, "Minutes");
     lv_obj_set_style_text_color(ui_minuteslabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_minuteslabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_minuteslabel, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_twodotslabel = lv_label_create(ui_Screen9);
-    lv_obj_set_width(ui_twodotslabel, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_twodotslabel, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_twodotslabel, -38);
-    lv_obj_set_y(ui_twodotslabel, -140);
-    lv_obj_set_align(ui_twodotslabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_twodotslabel, ":");
-    lv_obj_set_style_text_color(ui_twodotslabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_twodotslabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_twodotslabel, &lv_font_montserrat_46, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_timevaluemin2 = lv_textarea_create(ui_Screen9);
-    lv_obj_set_width(ui_timevaluemin2, 234);
-    lv_obj_set_height(ui_timevaluemin2, LV_SIZE_CONTENT);    /// 94
-    lv_obj_set_x(ui_timevaluemin2, 119);
-    lv_obj_set_y(ui_timevaluemin2, -139);
-    lv_obj_set_align(ui_timevaluemin2, LV_ALIGN_CENTER);
-    lv_textarea_set_placeholder_text(ui_timevaluemin2, "Enter time value in seconds");
-    lv_textarea_set_one_line(ui_timevaluemin2, true);
-
-
-
     ui_secondslabel = lv_label_create(ui_Screen9);
     lv_obj_set_width(ui_secondslabel, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_secondslabel, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_secondslabel, 118);
-    lv_obj_set_y(ui_secondslabel, -186);
+    lv_obj_set_x(ui_secondslabel, 89);
+    lv_obj_set_y(ui_secondslabel, -158);
     lv_obj_set_align(ui_secondslabel, LV_ALIGN_CENTER);
     lv_label_set_text(ui_secondslabel, "Seconds");
     lv_obj_set_style_text_color(ui_secondslabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_secondslabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_secondslabel, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_keyboard_set_textarea(ui_Keyboard2, ui_timevaluemin);
-    lv_obj_add_event_cb(ui_Button6, ui_event_Button6, LV_EVENT_ALL, NULL);
+    ui_rollerminutes = lv_roller_create(ui_Screen9);
+    lv_roller_set_options(ui_rollerminutes,
+                          "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59",
+                          LV_ROLLER_MODE_NORMAL);
+    lv_obj_set_width(ui_rollerminutes, 132);
+    lv_obj_set_height(ui_rollerminutes, 212);
+    lv_obj_set_x(ui_rollerminutes, -92);
+    lv_obj_set_y(ui_rollerminutes, -23);
+    lv_obj_set_align(ui_rollerminutes, LV_ALIGN_CENTER);
+    lv_obj_set_style_text_color(ui_rollerminutes, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_rollerminutes, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_rollerminutes, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_rollerminutes, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_rollerminutes, lv_color_hex(0x202429), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_rollerminutes, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_rollerminutes, lv_color_hex(0xE63029), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_rollerminutes, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_text_color(ui_rollerminutes, lv_color_hex(0xFFFFFF), LV_PART_SELECTED | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_rollerminutes, 255, LV_PART_SELECTED | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_rollerminutes, &lv_font_montserrat_32, LV_PART_SELECTED | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_rollerminutes, lv_color_hex(0xE63029), LV_PART_SELECTED | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_rollerminutes, 255, LV_PART_SELECTED | LV_STATE_DEFAULT);
+
+    ui_rollerseconds = lv_roller_create(ui_Screen9);
+    lv_roller_set_options(ui_rollerseconds,
+                          "10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59",
+                          LV_ROLLER_MODE_NORMAL);
+    lv_obj_set_width(ui_rollerseconds, 132);
+    lv_obj_set_height(ui_rollerseconds, 208);
+    lv_obj_set_x(ui_rollerseconds, 89);
+    lv_obj_set_y(ui_rollerseconds, -21);
+    lv_obj_set_align(ui_rollerseconds, LV_ALIGN_CENTER);
+    lv_obj_set_style_text_color(ui_rollerseconds, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_rollerseconds, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_rollerseconds, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_rollerseconds, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_rollerseconds, lv_color_hex(0x202429), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_rollerseconds, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_rollerseconds, lv_color_hex(0xE63029), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_rollerseconds, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(ui_rollerseconds, lv_color_hex(0xE63029), LV_PART_SELECTED | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_rollerseconds, 255, LV_PART_SELECTED | LV_STATE_DEFAULT);
+
+    ui_setuptimebutton = lv_btn_create(ui_Screen9);
+    lv_obj_set_width(ui_setuptimebutton, 354);
+    lv_obj_set_height(ui_setuptimebutton, 132);
+    lv_obj_set_x(ui_setuptimebutton, -8);
+    lv_obj_set_y(ui_setuptimebutton, 159);
+    lv_obj_set_align(ui_setuptimebutton, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_setuptimebutton, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_clear_flag(ui_setuptimebutton, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_setuptimebutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_setuptimebutton, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_setuptimebutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_setuptimebutton, lv_color_hex(0xDF312A), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_setuptimebutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_setuptimebutton, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_BACKTOSETUP3 = lv_label_create(ui_setuptimebutton);
+    lv_obj_set_width(ui_BACKTOSETUP3, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_BACKTOSETUP3, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_BACKTOSETUP3, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_BACKTOSETUP3, "ENTER");
+    lv_obj_set_style_text_font(ui_BACKTOSETUP3, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_add_event_cb(ui_setuptimebutton, ui_event_setuptimebutton, LV_EVENT_ALL, NULL);
 
 }

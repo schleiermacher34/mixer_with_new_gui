@@ -483,7 +483,8 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_x(ui_customsetupbutton, 174);
     lv_obj_set_y(ui_customsetupbutton, 160);
     lv_obj_set_align(ui_customsetupbutton, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_customsetupbutton, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_add_flag(ui_customsetupbutton, LV_OBJ_FLAG_SCROLL_ON_FOCUS); 
+    lv_obj_add_flag(ui_customsetupbutton, LV_OBJ_FLAG_HIDDEN);    /// Flags
     lv_obj_clear_flag(ui_customsetupbutton, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_customsetupbutton, 2500, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_customsetupbutton, lv_color_hex(0x363A45), LV_PART_MAIN | LV_STATE_DEFAULT);
