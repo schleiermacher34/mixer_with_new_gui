@@ -2,7 +2,7 @@
 #include <lvgl.h>
 #include <ESP_Panel_Library.h>
 #include <ESP_IOExpander_Library.h>
-#include <ui.h>
+#include "ui.h"
 #include "esp_log.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -13,7 +13,7 @@
 #include <ArduinoJson.h>
 #include <nvs.h>
 #include <nvs_flash.h>
-#include "esp_ota_ops.h"  // Include ESP-IDF OTA operations
+#include <esp_ota_ops.h>  // Include ESP-IDF OTA operations
 #include <ModbusRTU.h>    // Include emelianov's ModbusRTU library
 #include <esp_system.h>
 #include <esp_partition.h>
@@ -31,26 +31,77 @@
 #define I2C_MASTER_SDA_IO 8
 #define I2C_MASTER_SCL_IO 9
 
-/**
-/* To use the built-in examples and demos of LVGL uncomment the includes below respectively.
- * You also need to copy `lvgl/examples` to `lvgl/src/examples`. Similarly for the demos `lvgl/demos` to `lvgl/src/demos`.
- */
-// #include <demos/lv_demos.h>
-// #include <examples/lv_examples.h>
-
 /* LVGL porting configurations */
 #define LVGL_TICK_PERIOD_MS     (2)
 #define LVGL_TASK_MAX_DELAY_MS  (500)
-#define LVGL_TASK_MIN_DELAY_MS  (1)
-#define LVGL_TASK_STACK_SIZE    (4 * 1024)
+#define LVGL_TASK_MIN_DELAY_MS  (5) // Adjusted delay for stability
+#define LVGL_TASK_STACK_SIZE    (10 * 1024) // Increased stack size for LVGL
 #define LVGL_TASK_PRIORITY      (2)
-#define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * ESP_PANEL_LCD_V_RES / 10)
+#define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * 40)
+
+/* Define constants for the program data */
+#define MAX_STEPS 3  // Maximum steps in a program
+
+// OTA update server details
+#define CURRENT_FIRMWARE_VERSION "1.0.0"
+const char* host = "https://schleiermacher34.pythonanywhere.com/firmware/check_update/";
+
+/* Task and Semaphore Handles */
+TaskHandle_t otaTaskHandle = NULL;
+SemaphoreHandle_t lvgl_mux = NULL; // LVGL mutex
+SemaphoreHandle_t wifi_connect_semaphore = NULL;
+SemaphoreHandle_t wifi_scan_semaphore = NULL;
+SemaphoreHandle_t otaSemaphore = NULL;
+SemaphoreHandle_t save_program_semaphore = NULL; // Semaphore for saving program
+SemaphoreHandle_t run_program_semaphore = NULL;
+SemaphoreHandle_t nvs_mutex;
+SemaphoreHandle_t wifi_mutex;
+
+/* Structure to hold the program data */
+struct ProgramData {
+    uint16_t startRpm;           // Starting RPM from ui_Screen3_Roller9
+    uint16_t repeatCount;        // Repeat count from ui_Screen3_Roller18
+    uint16_t times[MAX_STEPS];   // Time for each step
+    uint16_t speeds[MAX_STEPS];  // Speeds for each step
+    bool directions[MAX_STEPS];  // Directions for each step
+};
+
+typedef struct {
+    bool direction;       // true for forward, false for reverse
+    uint16_t speed;       // Speed in RPM
+    bool autoMode;        // true for auto, false for manual
+    // Add other settings as needed
+} MotorConfig;
 
 ESP_Panel *panel = NULL;
-SemaphoreHandle_t lvgl_mux = NULL;                  // LVGL mutex
-SemaphoreHandle_t wifi_scan_semaphore = NULL;
-SemaphoreHandle_t wifi_connect_semaphore = NULL;
-SemaphoreHandle_t wifi_mutex;
+
+/* Modbus Configuration */
+#define MODBUS_TX_PIN 44        // Example GPIO pin for UART1 TX
+#define MODBUS_RX_PIN 43      // Example GPIO pin for UART1 RX
+#define MODBUS_DE_RE_PIN 4      // GPIO4 (DE/RE control pin)
+
+HardwareSerial ModbusSerial(1); // Use UART1
+ModbusRTU mb;                   // ModbusRTU instance
+
+#define MAX_SPEED_RPM 60        // Maximum speed in RPM
+#define MIN_SPEED_RPM 10        // Minimum speed in RPM
+#define MOTOR_POLES 2           // Number of motor poles (adjust as per your motor)
+#define BASE_FREQUENCY 50.0     // Base frequency in Hertz (adjust as per your motor)
+
+volatile bool actualSpeedUpdated = false;
+volatile uint16_t actualSpeedValue = 0;
+uint16_t actualSpeedRegisterValue = 0;
+
+// Global variables for UI updates
+volatile bool modbusErrorFlag = false;
+volatile uint8_t modbusErrorCode = 0;
+volatile bool mototimeUpdated = false;
+volatile uint16_t mototimeValue = 0;
+
+/* Function to Convert RPM to Hertz */
+float rpmToHertz(int rpm) {
+    return (float)rpm * 60.0;
+}
 
 #if ESP_PANEL_LCD_BUS_TYPE == ESP_PANEL_BUS_TYPE_RGB
 /* Display flushing */
@@ -107,33 +158,120 @@ void lvgl_port_unlock(void)
     xSemaphoreGiveRecursive(lvgl_mux);
 }
 
-void lvgl_port_task(void *arg)
-{
+bool ota_in_progress = false;
+
+void lvgl_port_task(void *arg) {
     Serial.println("Starting LVGL task");
 
     uint32_t task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
     while (1) {
-        // Lock the mutex due to the LVGL APIs are not thread-safe
-        lvgl_port_lock(-1);
+        lvgl_port_lock(-1); // Lock LVGL due to non-thread-safe API
+
+        // Handle LVGL timers
         task_delay_ms = lv_timer_handler();
-        // Release the mutex
+
+        // Check and handle Modbus error updates
+        if (modbusErrorFlag) {
+            lv_label_set_text_fmt(ui_Label45, "Modbus error: 0x%02X", modbusErrorCode);
+            modbusErrorFlag = false; // Reset the flag after handling
+        }
+
+        // Check and handle mototime updates
+        if (mototimeUpdated) {
+            lv_label_set_text_fmt(ui_Label45, " %u", mototimeValue);
+            mototimeUpdated = false; // Reset the flag after handling
+        }
+        // Update actual speed label
+        if (actualSpeedUpdated) {
+            float actualFrequencyHz = (float)actualSpeedValue / 100.0; // Assuming the value is in 0.01 Hz units
+            lv_label_set_text_fmt(ui_Label45, "Speed: %.2f Hz", actualFrequencyHz);
+            actualSpeedUpdated = false;
+        }
+
         lvgl_port_unlock();
+
+        // Adjust task delay
         if (task_delay_ms > LVGL_TASK_MAX_DELAY_MS) {
             task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
         } else if (task_delay_ms < LVGL_TASK_MIN_DELAY_MS) {
             task_delay_ms = LVGL_TASK_MIN_DELAY_MS;
         }
+
+        if (ota_in_progress) {
+            vTaskDelay(pdMS_TO_TICKS(100)); // Increase delay during OTA to reduce screen updates
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(LVGL_TASK_MIN_DELAY_MS));
+        }
+
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
 }
 
+/* UI Elements */
+// Settings Screen (Screen1)
+extern lv_obj_t *ui_starstopbutton;
+extern lv_obj_t *ui_Label1;
+extern lv_obj_t *ui_Label2;
+extern lv_obj_t *ui_rotationbutton;
+extern lv_obj_t *ui_Label4;
+extern lv_obj_t *ui_Label13;
+
+
+// Forward declarations
+// void initializeSerial();
+// void event_handler_serial_input_save(lv_event_t *e);
+// bool validateSerialNumber(const char *serial);
+// void saveSerialToNVS(const String& serial);
+// String readSerialFromNVS();
+// void pushSerialToServer(const String& serial);
+void ui_init(); // Assuming you have this function to initialize your UI
+
+// void event_handler_serial_input_save(lv_event_t *e);
+// String collectLogs();
+// void pushLogsToServer();
+// void server_connection_task(void *pvParameters);
+// bool validateSerialNumber(const char *serial);
+// void initializeSerial();
+// void saveSerialToNVS(const String& serial);
+// String readSerialFromNVS();
+// void pushSerialToServer(const String& serial);
+// bool verifyChecksum(WiFiClient* stream, int contentLength, const char* expectedChecksum);
+// void reduce_display_refresh_rate();
+// void restore_display_refresh_rate();
+// void hide_ui_elements_for_ota();
+// void show_ui_elements_after_ota();
+// void create_ota_progress_bar();
+// void update_ota_progress_bar(int progress);
+// void remove_ota_progress_bar();
+// void performOTAUpdate(const String& firmwareUrl);
+// void checkForUpdates();
+// void otaUpdateTask(void* parameter);
+// void event_handler_ota_update(lv_event_t * e);
+// void event_handler_save_program_button(lv_event_t * e);
+// bool actualSpeedCallback(Modbus::ResultCode event, uint16_t transactionId, void* data);
+// void vfdActualSpeedReadTask(void *pvParameters);
+// bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data);
+// esp_err_t saveProgramToNVS();
+// void saveProgramTask(void *pvParameters);
+// esp_err_t loadProgramFromNVS(uint16_t programIndex, ProgramData *programData);
+// void runProgram(const ProgramData *programData);
+// void runProgramTask(void *pvParameters);
+// esp_err_t saveMotorConfigToNVS(uint8_t motorID, const MotorConfig *config);
+// void event_handler_save_motor_config(lv_event_t * e);
+// esp_err_t loadMotorConfigFromNVS(uint8_t motorID, MotorConfig *config);
+// void event_handler_motor_selection(lv_event_t * e);
+// void event_handler_start_motor_button(lv_event_t * e);
+// void event_handler_stop_motor_button(lv_event_t * e);
+// void event_handler_change_speed_button(lv_event_t * e);
+// void update_arc_values_from_label();
+// void saveWifiCredentialsToNVS(const char* ssid, const char* password);
+// bool readWifiCredentialsFromNVS(char* ssid, size_t ssid_size, char* password, size_t password_size);
 void wifi_connect_task(void *pvParameters) {
     while (1) {
         // Wait for the semaphore to be given
         if (xSemaphoreTake(wifi_connect_semaphore, portMAX_DELAY)) {
             Serial.println("Wi-Fi connect task started.");
 
-            // Initialize buffers
             char ssid[64] = {0};
             char password[64] = {0};
 
@@ -142,11 +280,11 @@ void wifi_connect_task(void *pvParameters) {
 
             // Get the selected SSID from the dropdown
             if (ui_Roller1 != NULL) {
-                lv_dropdown_get_selected_str(ui_Roller1, ssid, sizeof(ssid));
+                lv_roller_get_selected_str(ui_Roller1, ssid, sizeof(ssid));
                 Serial.print("Selected SSID: ");
                 Serial.println(ssid);
             } else {
-                Serial.println("Error: ui_Screen2_Dropdown2 is NULL");
+                Serial.println("Error: ui_Roller1 is NULL");
                 lvgl_port_unlock();
                 continue; // Skip this iteration
             }
@@ -169,43 +307,25 @@ void wifi_connect_task(void *pvParameters) {
                 Serial.println("Error: Password input is NULL");
                 password[0] = '\0';
             } else {
-                // Copy the password safely
                 strncpy(password, password_tmp, sizeof(password) - 1);
-                password[sizeof(password) - 1] = '\0'; // Ensure null-termination
+                password[sizeof(password) - 1] = '\0';
             }
 
             // Check if SSID is empty
             if (strlen(ssid) == 0) {
                 Serial.println("Error: SSID is empty");
                 lvgl_port_lock(portMAX_DELAY);
-                //lv_label_set_text(ui_Screen2_Label7, "SSID is empty. Please select a network.");
+                lv_label_set_text(ui_Label45, "SSID is empty. Please select a network.");
                 lvgl_port_unlock();
                 continue; // Skip this iteration
             }
 
-            // Safely print the SSID and password lengths
             Serial.print("Attempting to connect to SSID: ");
             Serial.println(ssid);
-            Serial.print("Using password: ");
-            Serial.println(password);
-            Serial.printf("SSID length: %u\n", strlen(ssid));
-            Serial.printf("Password length: %u\n", strlen(password));
 
             // Acquire the Wi-Fi mutex before accessing Wi-Fi functions
             if (xSemaphoreTake(wifi_mutex, portMAX_DELAY)) {
-                // Disconnect before attempting new connection
-                WiFi.disconnect(true); // The 'true' parameter tells WiFi to erase old connection data
-
-                // Delay briefly to ensure disconnect completes
-                delay(100);
-
-                // Attempt to connect to the selected network
-                if (strlen(password) == 0) {
-                    Serial.println("No password provided, connecting without password.");
-                    WiFi.begin(ssid); // Connect without password
-                } else {
-                    WiFi.begin(ssid, password);
-                }
+                WiFi.begin(ssid, password);
 
                 // Wait for connection
                 int attempts = 0;
@@ -224,41 +344,37 @@ void wifi_connect_task(void *pvParameters) {
                     Serial.print("IP address: ");
                     Serial.println(WiFi.localIP());
 
-                    // Lock LVGL before accessing UI elements
-                    lvgl_port_lock(portMAX_DELAY);
+                    // // Lock LVGL before accessing UI elements
+                    // lvgl_port_lock(portMAX_DELAY);
 
-                //     // Check if the checkbox is checked
-                //   //  bool savePassword = lv_obj_has_state(ui_Screen2_Checkbox1, LV_STATE_CHECKED);
+                    // Check if the checkbox is checked
+                    // bool savePassword = lv_obj_has_state(ui_Screen2_Checkbox1, LV_STATE_CHECKED);
 
-                //     // Unlock LVGL
-                //     lvgl_port_unlock();
+                    // // Unlock LVGL
+                    // lvgl_port_unlock();
 
-                //     if (savePassword) {
-                //         Serial.println("Saving Wi-Fi credentials to NVS.");
-                //         // Acquire the NVS mutex before writing to NVS
-                //         xSemaphoreTake(nvs_mutex, portMAX_DELAY);
-                //         saveWifiCredentialsToNVS(ssid, password);
-                //         xSemaphoreGive(nvs_mutex);
-                //     }
+                    // if (savePassword) {
+                    //     Serial.println("Saving Wi-Fi credentials to NVS.");
+                    //     xSemaphoreTake(nvs_mutex, portMAX_DELAY);
+                    //     saveWifiCredentialsToNVS(ssid, password);
+                    //     xSemaphoreGive(nvs_mutex);
+                    // }
 
                     // Update the UI with connection success
                     lvgl_port_lock(portMAX_DELAY);
-                    lv_label_set_text(ui_backtosetupbutton2, "Connected to network");
+                    lv_label_set_text(ui_Label45, "Connected to network");
                     lvgl_port_unlock();
 
                 } else {
                     Serial.println("\nWi-Fi connection failed.");
-
-                    // Update the UI with connection failure
                     lvgl_port_lock(portMAX_DELAY);
-                    lv_label_set_text(ui_backtosetupbutton2, "Failed to connect to network");
+                    lv_label_set_text(ui_Label45, "Failed to connect to network");
                     lvgl_port_unlock();
                 }
             } else {
                 Serial.println("Failed to acquire Wi-Fi mutex. Cannot perform Wi-Fi operations.");
-                // Optionally update UI to inform the user
                 lvgl_port_lock(portMAX_DELAY);
-                lv_label_set_text(ui_backtosetupbutton2, "Wi-Fi is busy. Try again later.");
+                lv_label_set_text(ui_Label45, "Wi-Fi is busy. Try again later.");
                 lvgl_port_unlock();
             }
         }
@@ -267,71 +383,92 @@ void wifi_connect_task(void *pvParameters) {
 
 void wifi_scan_task(void *pvParameters) {
     while (1) {
-        // Wait for the semaphore to be given
         if (xSemaphoreTake(wifi_scan_semaphore, portMAX_DELAY)) {
-            // Acquire the Wi-Fi mutex
             if (xSemaphoreTake(wifi_mutex, portMAX_DELAY)) {
                 Serial.println("Starting WiFi scan...");
-
-                // Clear existing dropdown items
-                lvgl_port_lock(-1);
-                lv_dropdown_clear_options(ui_Roller1);
-                lvgl_port_unlock();
-
-                // Set Wi-Fi mode to station mode
                 WiFi.mode(WIFI_STA);
 
-                // Start Wi-Fi scan
-                int n = WiFi.scanNetworks();  // Scan for available networks
-                Serial.println("Scan completed");
+                // Limit the number of networks to avoid memory issues
+                int max_networks = 10;
 
-                // Check if any networks were found
+                // Start Wi-Fi scan
+                int n = WiFi.scanNetworks();
+                Serial.printf("Scan completed, found %d networks\n", n);
+
                 if (n == 0) {
                     Serial.println("No networks found");
                     lvgl_port_lock(-1);
-                    lv_dropdown_set_options(ui_Roller1, "No networks found");
+                    lv_roller_set_options(ui_Roller1, "No networks found", LV_ROLLER_MODE_INFINITE);
                     lvgl_port_unlock();
                 } else {
-                    Serial.printf("%d networks found:\n", n);
-                    String ssidList = "";  // Initialize empty string for storing SSIDs
+                    n = (n > max_networks) ? max_networks : n; // Limit to max_networks
+                    String ssidList = "";
 
-                    // Loop through the found networks and append them to ssidList
                     for (int i = 0; i < n; ++i) {
-                        String ssid = WiFi.SSID(i);  // Get the SSID of the network
+                        String ssid = WiFi.SSID(i);
                         Serial.printf("%d: %s (%d dBm)\n", i + 1, ssid.c_str(), WiFi.RSSI(i));
-                        ssidList += ssid + "\n";  // Add a newline for each SSID
+                        ssidList += ssid + "\n";
                     }
 
-                    // Update dropdown options with available SSIDs
+                    // Update roller options with available SSIDs
                     lvgl_port_lock(-1);
-                    lv_dropdown_set_options(ui_Roller1, ssidList.c_str());
+                    lv_roller_set_options(ui_Roller1, ssidList.c_str(), LV_ROLLER_MODE_INFINITE);
                     lvgl_port_unlock();
                 }
 
-                WiFi.scanDelete();  // Clean up the scanned networks from memory
-
-                // Release the Wi-Fi mutex
+                WiFi.scanDelete();
                 xSemaphoreGive(wifi_mutex);
             }
         }
+        vTaskDelay(pdMS_TO_TICKS(100)); // Yield to other tasks
     }
 }
 
-/* Event Handlers for Wi-Fi Buttons */
-void event_handler_scan_button(lv_event_t * e) {
-    Serial.println("Scan button pressed, giving semaphore to WiFi scan task...");
-    xSemaphoreGive(wifi_scan_semaphore);  // Unblock the Wi-Fi scan task
-}
 
-void event_handler_connect_button(lv_event_t * e) {
-    Serial.println("Connect button pressed, giving semaphore to Wi-Fi connection task...");
-    if (wifi_connect_semaphore != NULL) {
-        xSemaphoreGive(wifi_connect_semaphore);  // Unblock the Wi-Fi connection task
-    } else {
-        Serial.println("Error: wifi_connect_semaphore is NULL");
+
+// void event_handler_scan_button(lv_event_t * e)
+// {
+//     if(switch)
+// }
+// void event_handler_connect_button(lv_event_t * e);
+// void modbusTask(void *pvParameters);
+// void vfdReadTask(void *pvParameters);
+// void WiFiEvent(WiFiEvent_t event) {
+//     switch (event.event_id) {
+//         case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+//             Serial.println("Wi-Fi connected. IP address: ");
+//             Serial.println(WiFi.localIP());
+//             break;
+//         case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+//             Serial.println("Wi-Fi lost connection");
+//             // Try to reconnect
+//             WiFi.reconnect();
+//             break;
+//         default:
+//             break;
+//     }
+// }
+
+
+// uint8_t getSelectedMotorID();
+
+// Global variables
+lv_obj_t* ota_progress_bar;
+void event_handler_ui_Switch1(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        // Check if the switch is on (checked)
+        if (lv_obj_has_state(obj, LV_STATE_CHECKED)) {
+            Serial.println("Switch is ON, starting Wi-Fi scan...");
+            xSemaphoreGive(wifi_scan_semaphore);  // Trigger the Wi-Fi scan task
+        } else {
+            Serial.println("Switch is OFF");
+            // Optionally, you can handle the switch being turned off here
+        }
     }
 }
-
 void update_panel_colors(uint16_t min, uint16_t max) {
     // Get the value from ui_Label9
     const char *label_text = lv_label_get_text(ui_Label9);
@@ -385,7 +522,42 @@ void update_panel_colors(uint16_t min, uint16_t max) {
     if (num_panels >= 16) lv_obj_set_style_bg_color(ui_Panel8, active_color, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
+void ui_event_Button5(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label35);
+    int current_value = atoi(label_text);
 
+    // Define the maximum value
+    int max_value = 6;
+    int min = 10;
+    int max = 60;
+    // Increment the value if it's below the maximum
+    if (current_value < max_value) {
+        current_value++;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label35, new_value); // Update the label
+        update_panel_colors(min, max);
+    }
+}
+void ui_event_Button8(lv_event_t *e) {
+    // Get the current value of ui_Label9
+    const char *label_text = lv_label_get_text(ui_Label35);
+    int current_value = atoi(label_text);
+
+    // Define the minimum value
+    int min_value = 1;
+    int min = 10;
+    int max = 60;
+    // Decrement the value if it's above the minimum
+    if (current_value > min_value) {
+        current_value--;
+        char new_value[10];
+        snprintf(new_value, sizeof(new_value), "%d", current_value);
+        lv_label_set_text(ui_Label35, new_value); // Update the label
+        update_panel_colors(min, max);
+    }
+}
 void ui_event_modebutton3(lv_event_t *e) {
     // Check if the event is a CLICKED event
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
@@ -417,105 +589,44 @@ void ui_event_modebutton3(lv_event_t *e) {
 }
 
 
-void WiFiEvent(WiFiEvent_t event) {
-    switch (event) {
-        case SYSTEM_EVENT_STA_GOT_IP:
-            Serial.println("Wi-Fi connected. IP address: ");
-            Serial.println(WiFi.localIP());
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            Serial.println("Wi-Fi lost connection");
-            // Try to reconnect
-            WiFi.reconnect();
-            break;
-        default:
-            break;
-    }
-}
-
-void ui_event_Button5(lv_event_t *e) {
-    // Get the current value of ui_Label9
-    const char *label_text = lv_label_get_text(ui_Label35);
-    int current_value = atoi(label_text);
-
-    // Define the maximum value
-    int max_value = 6;
-    int min = 10;
-    int max = 60;
-    // Increment the value if it's below the maximum
-    if (current_value < max_value) {
-        current_value++;
-        char new_value[10];
-        snprintf(new_value, sizeof(new_value), "%d", current_value);
-        lv_label_set_text(ui_Label35, new_value); // Update the label
-        update_panel_colors(min, max);
-    }
-}
-
-void ui_event_Button8(lv_event_t *e) {
-    // Get the current value of ui_Label9
-    const char *label_text = lv_label_get_text(ui_Label35);
-    int current_value = atoi(label_text);
-
-    // Define the minimum value
-    int min_value = 1;
-    int min = 10;
-    int max = 60;
-    // Decrement the value if it's above the minimum
-    if (current_value > min_value) {
-        current_value--;
-        char new_value[10];
-        snprintf(new_value, sizeof(new_value), "%d", current_value);
-        lv_label_set_text(ui_Label35, new_value); // Update the label
-        update_panel_colors(min, max);
-    }
-}
 void setup() {
-    Serial.begin(115200); // Start serial communication for debugging
-    Serial.println("Starting setup...");
+    Serial.begin(115200);
+    Serial.setDebugOutput(true);
+    Serial.printf("Free heap: %u bytes\n", esp_get_free_heap_size());
 
-    // Display LVGL version
-    String LVGL_Arduino = "Hello LVGL! ";
-    LVGL_Arduino += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-    Serial.println(LVGL_Arduino);
+    Serial.println("Setup starting...");
+    esp_log_level_set("*", ESP_LOG_VERBOSE);
 
-    // Initialize the panel object
     panel = new ESP_Panel();
 
-    // Initialize LVGL core
+    /* Initialize LVGL core */
     lv_init();
 
+    /* Create LVGL mutex */
+    lvgl_mux = xSemaphoreCreateRecursiveMutex();
+
     static lv_disp_draw_buf_t draw_buf;
-
-    // Allocate LVGL buffer
-uint8_t *buf = (uint8_t *)heap_caps_malloc(LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-if (!buf) {
-    // Fallback to internal memory if PSRAM allocation fails
-    buf = (uint8_t *)heap_caps_calloc(1, LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_INTERNAL);
+    // Use internal memory or PSRAM if available
+    lv_color_t *buf = (lv_color_t *)heap_caps_malloc(LVGL_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     if (!buf) {
-        Serial.println("Failed to allocate display buffer!");
-        while (true); // Halt execution for debugging
+        Serial.println("Error: Failed to allocate LVGL buffer");
+        while (1);
     }
-}
-if (ui_Switch1) {
-        lv_obj_add_event_cb(ui_Switch1, event_handler_scan_button, LV_EVENT_CLICKED, NULL);
-    } else {
-        Serial.println("ui_Switch1 is NULL");
-    }
-
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_BUF_SIZE);
 
-    // Initialize the display device
+
+    /* Initialize the display device */
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = ESP_PANEL_LCD_H_RES; // Set the horizontal resolution
-    disp_drv.ver_res = ESP_PANEL_LCD_V_RES; // Set the vertical resolution
-    disp_drv.flush_cb = lvgl_port_disp_flush; // Set the flush callback
+    disp_drv.hor_res = ESP_PANEL_LCD_H_RES;
+    disp_drv.ver_res = ESP_PANEL_LCD_V_RES;
+    disp_drv.flush_cb = lvgl_port_disp_flush;
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);
 
+
 #if ESP_PANEL_USE_LCD_TOUCH
-    // Initialize touch input
+    /* Initialize the input device */
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -523,57 +634,218 @@ if (ui_Switch1) {
     lv_indev_drv_register(&indev_drv);
 #endif
 
-    // Initialize the panel
+    /* Initialize bus and device of panel */
     panel->init();
 
 #if ESP_PANEL_LCD_BUS_TYPE != ESP_PANEL_BUS_TYPE_RGB
-    // Register callback for DMA flush ready
+    /* Register a function to notify LVGL when the panel is ready to flush */
     panel->getLcd()->setCallback(notify_lvgl_flush_ready, &disp_drv);
 #endif
 
-    // Initialize IO expander if required by the board
-    Serial.println("Initialize IO expander...");
+    /* Initialize IO expander */
+    Serial.println("Initialize IO expander");
     ESP_IOExpander *expander = new ESP_IOExpander_CH422G(I2C_MASTER_NUM, ESP_IO_EXPANDER_I2C_CH422G_ADDRESS_000);
     expander->init();
     expander->begin();
     expander->multiPinMode(TP_RST | LCD_BL | LCD_RST | SD_CS | USB_SEL, OUTPUT);
     expander->multiDigitalWrite(TP_RST | LCD_BL | LCD_RST | SD_CS, HIGH);
-    expander->digitalWrite(USB_SEL, LOW); // Configure USB_SEL pin
-    panel->addIOExpander(expander); // Add expander to the panel
+    expander->digitalWrite(USB_SEL, LOW);
+    /* Add into panel */
+    panel->addIOExpander(expander);
 
-    // Start the panel
+    /* Start panel */
     panel->begin();
+
+    /* Create LVGL task */
+    xTaskCreate(lvgl_port_task, "lvgl", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY + 1, NULL); // Set higher priority for LVGL task
+
+    /* Initialize UI */
+    ui_init();
+
+    // Initialize NVS
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
 
     // Initialize Wi-Fi in station mode
     WiFi.mode(WIFI_STA);
-    WiFi.onEvent(WiFiEvent);
+    // WiFi.onEvent(WiFiEvent);
     WiFi.disconnect();
 
     delay(100); // Short delay to ensure Wi-Fi is initialized
 
-    // Create a mutex for LVGL to ensure thread safety
-    lvgl_mux = xSemaphoreCreateRecursiveMutex();
+    // Attempt to read Wi-Fi credentials from NVS
+    char ssid[64];
+    char password[64];
+    // if (readWifiCredentialsFromNVS(ssid, sizeof(ssid), password, sizeof(password))) {
+    //     Serial.printf("Connecting to saved Wi-Fi network: SSID: %s\n", ssid);
+    //     WiFi.begin(ssid, password);
+
+    //     // Wait for connection
+    //     int attempts = 0;
+    //     while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    //         delay(500);
+    //         Serial.print(".");
+    //         attempts++;
+    //     }
+
+    //     if (WiFi.status() == WL_CONNECTED) {
+    //         Serial.println("\nWi-Fi connected successfully!");
+    //         Serial.print("IP address: ");
+    //         Serial.println(WiFi.localIP());
+    //         // Optionally update UI
+    //     } else {
+    //         Serial.println("\nFailed to connect to saved Wi-Fi network.");
+    //         // Optionally update UI
+    //     }
+    // } else {
+    //     Serial.println("No saved Wi-Fi credentials found in NVS.");
+    // }
+
+    // Initialize the NVS mutex
+    nvs_mutex = xSemaphoreCreateMutex();
+
+    // // Check if the firmware is pending verification
+    // esp_ota_img_states_t otaState;
+    // const esp_partition_t* runningPartition = esp_ota_get_running_partition();
+    // initializeSerial();
+
+    // if (esp_ota_get_state_partition(runningPartition, &otaState) == ESP_OK) {
+    //     if (otaState == ESP_OTA_IMG_PENDING_VERIFY) {
+    //         Serial.println("Firmware is pending verification. Confirming now...");
+
+    //         // Perform any additional checks here (e.g., sensor initialization)
+    //         // If everything is okay, confirm the firmware
+    //         esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+    //         if (err == ESP_OK) {
+    //             Serial.println("Firmware marked as valid.");
+    //         } else {
+    //             Serial.printf("Failed to mark firmware as valid: %s\n", esp_err_to_name(err));
+    //             // Optionally, initiate a rollback
+    //             // esp_ota_mark_app_invalid_rollback_and_reboot();
+    //         }
+    //     }
+    // }
+
+    if (ui_Switch1) {
+        lv_obj_add_event_cb(ui_Switch1, event_handler_ui_Switch1, LV_EVENT_VALUE_CHANGED, NULL);
+    } else {
+        Serial.println("Error: ui_Switch1 is NULL");
+    }
+    // /* Attach event handlers (check for null pointers) */
+    // if (ui_Screen2_Button8) {
+    //     lv_obj_add_event_cb(ui_Screen2_Button8, event_handler_scan_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen2_Button8 is NULL");
+    // }
+
+    // if (ui_Screen2_Button9) {
+    //     lv_obj_add_event_cb(ui_Screen2_Button9, event_handler_connect_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen2_Button9 is NULL");
+    // }
+
+    // if (ui_Screen2_Button10) {
+    //     lv_obj_add_event_cb(ui_Screen2_Button10, event_handler_ota_update, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen2_Button10 is NULL");
+    // }
+
+    // if (ui_Screen3_Button13) {
+    //     lv_obj_add_event_cb(ui_Screen3_Button13, event_handler_start_motor_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen3_Button13 is NULL");
+    // }
+
+    // if (ui_Screen3_Button2) {
+    //     lv_obj_add_event_cb(ui_Screen3_Button2, event_handler_stop_motor_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen3_Button2 is NULL");
+    // }
+
+    // if (ui_Screen3_Button3) {
+    //     lv_obj_add_event_cb(ui_Screen3_Button3, event_handler_change_speed_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen3_Button3 is NULL");
+    // }
+
+    // if (ui_Screen5_Button3) {
+    //     lv_obj_add_event_cb(ui_Screen5_Button3, event_handler_save_program_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen5_Button3 is NULL");
+    // }
+
+    // if (ui_Screen3_Button5) {
+    //     lv_obj_add_event_cb(ui_Screen3_Button5, event_handler_save_motor_config, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen3_Button5 is NULL");
+    // }
+
+    // if (ui_Screen3_Dropdown1) {
+    //     lv_obj_add_event_cb(ui_Screen3_Dropdown1, event_handler_motor_selection, LV_EVENT_VALUE_CHANGED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen3_Dropdown1 is NULL");
+    // }
+
+    // if (ui_Screen1_Button4) {
+    //     lv_obj_add_event_cb(ui_Screen1_Button4, event_handler_stop_motor_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen1_Button4 is NULL");
+    // }
+
+    // if (ui_Screen1_Button9) {
+    //     Serial.println("Attaching event handler to ui_Screen1_Button9");
+    //     lv_obj_add_event_cb(ui_Screen1_Button9, event_handler_serial_input_save, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("Error: ui_Screen1_Button9 is NULL");
+    // }
+
+    // if (ui_Screen1_Button8) {
+    //     lv_obj_add_event_cb(ui_Screen1_Button8, event_handler_stop_motor_button, LV_EVENT_CLICKED, NULL);
+    // } else {
+    //     Serial.println("ui_Screen1_Button8 is NULL");
+    // }
+
+    save_program_semaphore = xSemaphoreCreateBinary();
+
     wifi_connect_semaphore = xSemaphoreCreateBinary();
+    wifi_scan_semaphore = xSemaphoreCreateBinary();
     wifi_mutex = xSemaphoreCreateMutex();
+    otaSemaphore = xSemaphoreCreateBinary();
 
-    // Create a task for LVGL periodic handling
-    xTaskCreate(lvgl_port_task, "lvgl", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
-    // xTaskCreate(wifi_scan_task, "WiFi Scan Task", 4096 * 2, NULL, 1, NULL);
-    // xTaskCreate(wifi_connect_task, "WiFi Connect Task", 2046, NULL, 1, NULL);
+    /* Create tasks */
+    xTaskCreate(wifi_connect_task, "WiFi Connect Task", 3072, NULL, 1, NULL);
+    xTaskCreate(wifi_scan_task, "WiFi Scan Task", 3072, NULL, 1, NULL);
+    // xTaskCreate(server_connection_task, "Server Connection Task", 16384, NULL, 1, NULL);
 
-    // Lock LVGL while initializing the UI
-    lvgl_port_lock(-1);
-    ui_init(); // Initialize the UI (from your generated ui.h)
-    lvgl_port_unlock();
+    // // Create the OTA update task
+    // xTaskCreate(otaUpdateTask, "OTA Update Task", 16384, NULL, 1, &otaTaskHandle);
+    // xTaskCreate(saveProgramTask, "Save Program Task", 4096, NULL, 1, NULL);
+    // xTaskCreate(vfdActualSpeedReadTask, "VFD Actual Speed Read Task", 4096, NULL, 1, NULL);
+    // xTaskCreate(modbusTask, "Modbus Task", 4096, NULL, 2, NULL);
+    // xTaskCreate(vfdReadTask, "VFD Read Task", 4096, NULL, 1, NULL);
 
-    Serial.println("Setup done.");
+    /* Initialize Modbus Serial */
+    pinMode(MODBUS_DE_RE_PIN, OUTPUT);
+    digitalWrite(MODBUS_DE_RE_PIN, LOW); // Receiver enabled by default
+
+    // Initialize Modbus serial port with new TX and RX pins
+    ModbusSerial.begin(9600, SERIAL_8N1, MODBUS_RX_PIN, MODBUS_TX_PIN);
+    if (!ModbusSerial) {
+        Serial.println("Modbus Serial initialization failed");
+        while (1); // Halt if Modbus initialization fails
+    }
+
+    mb.begin(&ModbusSerial, MODBUS_DE_RE_PIN); // Initialize Modbus with DE/RE pin
+    mb.master(); // Set as Modbus master
+
+    Serial.println("Modbus initialized");
+    Serial.println("Setup done");
 }
-
-
 
 void loop() {
-    // LVGL periodic task handler
-    lv_timer_handler();
-    delay(5); // Small delay to avoid excessive CPU usage
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
-
