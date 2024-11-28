@@ -197,6 +197,7 @@ void ui_Screen7_screen_init(void)
     lv_obj_set_x(ui_backtosetupbutton2, 183);
     lv_obj_set_y(ui_backtosetupbutton2, 131);
     lv_obj_set_align(ui_backtosetupbutton2, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_BACKTOSETUP2, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_backtosetupbutton2, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_clear_flag(ui_backtosetupbutton2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_backtosetupbutton2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -210,14 +211,15 @@ void ui_Screen7_screen_init(void)
     lv_obj_set_width(ui_BACKTOSETUP2, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_BACKTOSETUP2, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_BACKTOSETUP2, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_BACKTOSETUP2, "ENTER");
+    
+    lv_label_set_text(ui_BACKTOSETUP2, "CONNECT");
     lv_obj_set_style_text_font(ui_BACKTOSETUP2, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_passwordarea = lv_textarea_create(ui_Screen7);
     lv_obj_set_width(ui_passwordarea, 374);
     lv_obj_set_height(ui_passwordarea, LV_SIZE_CONTENT);    /// 160
-    lv_obj_set_x(ui_passwordarea, 15);
-    lv_obj_set_y(ui_passwordarea, -112);
+    lv_obj_set_x(ui_passwordarea, 154);
+    lv_obj_set_y(ui_passwordarea, -69);
     lv_obj_set_align(ui_passwordarea, LV_ALIGN_CENTER);
     lv_textarea_set_placeholder_text(ui_passwordarea, "Password");
     lv_textarea_set_one_line(ui_passwordarea, true);
@@ -257,15 +259,15 @@ void ui_Screen7_screen_init(void)
     lv_obj_set_width(ui_oklabel, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_oklabel, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_oklabel, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_oklabel, "Enter");
+    lv_label_set_text(ui_oklabel, "OK");
     lv_obj_set_style_text_font(ui_oklabel, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Checkbox1 = lv_checkbox_create(ui_Screen7);
     lv_checkbox_set_text(ui_Checkbox1, "         save wi-fi password");
     lv_obj_set_width(ui_Checkbox1, 438);
     lv_obj_set_height(ui_Checkbox1, 54);
-    lv_obj_set_x(ui_Checkbox1, 86);
-    lv_obj_set_y(ui_Checkbox1, -35);
+    lv_obj_set_x(ui_Checkbox1, 193);
+    lv_obj_set_y(ui_Checkbox1, 9);
     lv_obj_set_align(ui_Checkbox1, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_Checkbox1, LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_set_style_text_color(ui_Checkbox1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);

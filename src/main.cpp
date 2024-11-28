@@ -244,24 +244,11 @@ extern lv_obj_t *ui_rotationbutton;
 extern lv_obj_t *ui_Label4;
 extern lv_obj_t *ui_Label13;
 
-void saveCurrentModeSettings() {
-    switch (currentMode) {
-        case MODE_MANUAL:
-            manualModeSettings.speed = getSpeedFromUI();
-            manualModeSettings.rotation = getRotationFromUI();
-            break;
-        case MODE_AUTO:
-            autoModeSettings.programNumber = getProgramNumberFromUI();
-            // Save other Auto mode settings if needed
-            break;
-        case MODE_CUSTOM:
-            customModeSettings.programNumber = getCustomProgramNumberFromUI();
-            // Save other Custom mode settings if needed
-            break;
-        default:
-            break;
-    }
-}
+
+
+
+
+
 uint16_t getSpeedFromUI() {
     const char *speedText = lv_label_get_text(ui_Label4);
     return atoi(speedText);
@@ -369,7 +356,22 @@ void setProgramNumberToUI(uint8_t programNumber, bool isCustomMode) {
 }
 
 
-
+void saveCurrentModeSettings() {
+    switch (currentMode) {
+        case MODE_MANUAL:
+            manualModeSettings.speed = getSpeedFromUI();
+            manualModeSettings.rotation = getRotationFromUI();
+            break;
+        case MODE_AUTO:
+            autoModeSettings.programNumber = getProgramNumberFromUI(false);
+            break;
+        case MODE_CUSTOM:
+            customModeSettings.programNumber = getProgramNumberFromUI(true);
+            break;
+        default:
+            break;
+    }
+}
 // Forward declarations
 // void initializeSerial();
 // void event_handler_serial_input_save(lv_event_t *e);
