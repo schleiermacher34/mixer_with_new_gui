@@ -271,7 +271,7 @@ extern lv_obj_t * ui_fhewiofiokwef;
 extern lv_obj_t * ui_onlab;
 extern lv_obj_t * ui_Roller1;
 extern lv_obj_t * ui_wifissid;
-void ui_event_backtosetupbutton2(lv_event_t * e);
+void event_enterwifi_button(lv_event_t * e);
 extern lv_obj_t * ui_backtosetupbutton2;
 extern lv_obj_t * ui_BACKTOSETUP2;
 void ui_event_passwordarea(lv_event_t * e);

@@ -72,6 +72,34 @@ typedef struct {
     bool autoMode;        // true for auto, false for manual
     // Add other settings as needed
 } MotorConfig;
+// Mode definitions
+#define MODE_MANUAL 0
+#define MODE_AUTO   1
+#define MODE_CUSTOM 2
+
+// Current mode variable
+uint8_t currentMode = MODE_MANUAL;  // Start with Manual mode
+
+typedef struct {
+    uint16_t speed;    // Speed value
+    bool rotation;     // Rotation direction (true for forward, false for reverse)
+} ManualModeSettings;
+
+typedef struct {
+    uint8_t programNumber;  // Selected program number
+    // Add other settings as needed
+} AutoModeSettings;
+
+typedef struct {
+    uint8_t programNumber;
+    // Add other custom settings as needed
+} CustomModeSettings;
+
+// Create instances of the settings structures
+ManualModeSettings manualModeSettings;
+AutoModeSettings autoModeSettings;
+CustomModeSettings customModeSettings;
+
 
 ESP_Panel *panel = NULL;
 
@@ -216,6 +244,131 @@ extern lv_obj_t *ui_rotationbutton;
 extern lv_obj_t *ui_Label4;
 extern lv_obj_t *ui_Label13;
 
+void saveCurrentModeSettings() {
+    switch (currentMode) {
+        case MODE_MANUAL:
+            manualModeSettings.speed = getSpeedFromUI();
+            manualModeSettings.rotation = getRotationFromUI();
+            break;
+        case MODE_AUTO:
+            autoModeSettings.programNumber = getProgramNumberFromUI();
+            // Save other Auto mode settings if needed
+            break;
+        case MODE_CUSTOM:
+            customModeSettings.programNumber = getCustomProgramNumberFromUI();
+            // Save other Custom mode settings if needed
+            break;
+        default:
+            break;
+    }
+}
+uint16_t getSpeedFromUI() {
+    const char *speedText = lv_label_get_text(ui_Label4);
+    return atoi(speedText);
+}
+
+bool getRotationFromUI() {
+    // Check if ui_Label5 is hidden
+    if (lv_obj_has_flag(ui_Label5, LV_OBJ_FLAG_HIDDEN)) {
+        // If ui_Label5 is hidden, rotation is in reverse
+        return false;  // Reverse rotation
+    }
+
+    // Check if ui_Label6 is hidden
+    if (lv_obj_has_flag(ui_Label6, LV_OBJ_FLAG_HIDDEN)) {
+        // If ui_Label6 is hidden, rotation is forward
+        return true;  // Forward rotation
+    }
+
+    // Default to forward rotation if neither label is hidden (optional)
+    return true;
+}
+
+void toggleRotation() {
+    if (getRotationFromUI()) {
+        // If current rotation is forward, set to reverse
+        lv_obj_add_flag(ui_Label6, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(ui_Label5, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        // If current rotation is reverse, set to forward
+        lv_obj_add_flag(ui_Label5, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(ui_Label6, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+
+void setSpeedToUI(uint16_t speed) {
+    char speedText[10];
+    snprintf(speedText, sizeof(speedText), "%d", speed);
+    lv_label_set_text(ui_Label4, speedText);
+}
+
+void setRotationToUI(bool rotation) {
+    if (rotation) {
+        // Forward rotation
+        lv_obj_add_flag(ui_Label5, LV_OBJ_FLAG_HIDDEN);  // Hide "Reverse" label
+        lv_obj_clear_flag(ui_Label6, LV_OBJ_FLAG_HIDDEN); // Show "Forward" label
+    } else {
+        // Reverse rotation
+        lv_obj_add_flag(ui_Label6, LV_OBJ_FLAG_HIDDEN);  // Hide "Forward" label
+        lv_obj_clear_flag(ui_Label5, LV_OBJ_FLAG_HIDDEN); // Show "Reverse" label
+    }
+
+    // Optionally update ui_rotationbutton or other UI elements if needed
+    Serial.printf("Rotation set to %s\n", rotation ? "Forward" : "Reverse");
+}
+
+uint8_t getProgramNumberFromUI(bool isCustomMode) {
+    const char *labelText = nullptr;
+
+    if (isCustomMode) {
+        // Get the text from ui_Label21 for custom mode
+        labelText = lv_label_get_text(ui_Label21);
+    } else {
+        // Get the text from ui_Label11 for auto mode
+        labelText = lv_label_get_text(ui_Label11);
+    }
+
+    if (labelText == nullptr) {
+        Serial.println("Error: Label text is NULL");
+        return 0;  // Default program number if text is invalid
+    }
+
+    // Extract the program number from the label text (assuming format like "0/1", "1/2", etc.)
+    char programNumber[3] = {0};
+    strncpy(programNumber, labelText, 1);  // Extract only the first character
+    uint8_t selectedProgramNumber = atoi(programNumber);  // Convert to integer
+
+    Serial.printf("Selected Program Number: %u (%s Mode)\n", selectedProgramNumber, isCustomMode ? "Custom" : "Auto");
+
+    return selectedProgramNumber;
+}
+
+
+void setProgramNumberToUI(uint8_t programNumber, bool isCustomMode) {
+    char programText[8];  // Buffer to hold the formatted program text
+    snprintf(programText, sizeof(programText), "%u/1", programNumber);
+
+    if (isCustomMode) {
+        // Set the program number to ui_Label21 for custom mode
+        if (ui_Label21 != nullptr) {
+            lv_label_set_text(ui_Label21, programText);
+            Serial.printf("Set program number to %u for Custom mode\n", programNumber);
+        } else {
+            Serial.println("Error: ui_Label21 is NULL");
+        }
+    } else {
+        // Set the program number to ui_Label11 for auto mode
+        if (ui_Label11 != nullptr) {
+            lv_label_set_text(ui_Label11, programText);
+            Serial.printf("Set program number to %u for Auto mode\n", programNumber);
+        } else {
+            Serial.println("Error: ui_Label11 is NULL");
+        }
+    }
+}
+
+
 
 // Forward declarations
 // void initializeSerial();
@@ -224,7 +377,7 @@ extern lv_obj_t *ui_Label13;
 // void saveSerialToNVS(const String& serial);
 // String readSerialFromNVS();
 // void pushSerialToServer(const String& serial);
-void ui_init(); // Assuming you have this function to initialize your UI
+
 
 // void event_handler_serial_input_save(lv_event_t *e);
 // String collectLogs();
@@ -467,6 +620,14 @@ void event_handler_ui_Switch1(lv_event_t * e) {
             Serial.println("Switch is OFF");
             // Optionally, you can handle the switch being turned off here
         }
+    }
+}
+void event_enterwifi_button(lv_event_t * e){
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if (code == LV_EVENT_PRESSED){
+        xSemaphoreGive(wifi_connect_semaphore);
     }
 }
 void update_panel_colors(uint16_t min, uint16_t max) {

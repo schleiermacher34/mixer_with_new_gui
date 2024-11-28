@@ -273,7 +273,7 @@ void ui_Screen7_screen_init(void)
 
     lv_obj_add_event_cb(ui_backtosetupbutton, ui_event_backtosetupbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Switch1, ui_event_Switch1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_backtosetupbutton2, ui_event_backtosetupbutton2, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_backtosetupbutton2,event_enterwifi_button, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_passwordarea, ui_event_passwordarea, LV_EVENT_ALL, NULL);
     lv_keyboard_set_textarea(ui_passwordboard, ui_passwordarea);
     lv_obj_add_event_cb(ui_okbutton, ui_event_okbutton, LV_EVENT_ALL, NULL);
