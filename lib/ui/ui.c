@@ -50,18 +50,15 @@ lv_obj_t * ui_modebutton5;
 lv_obj_t * ui_Label14;
 lv_obj_t * ui_Panel11;
 lv_obj_t * ui_Label11;
-void ui_event_speedchange2(lv_event_t * e);
-lv_obj_t * ui_speedchange2;
-lv_obj_t * ui_Panel12;
-lv_obj_t * ui_Image11;
-lv_obj_t * ui_Label17;
-lv_obj_t * ui_Label15;
+lv_obj_t * ui_Label55;
 void ui_event_modebutton6(lv_event_t * e);
 lv_obj_t * ui_modebutton6;
-lv_obj_t * ui_Label19;
-lv_obj_t * ui_Panel13;
-lv_obj_t * ui_Image10;
-lv_obj_t * ui_Label16;
+lv_obj_t * ui_Panelmode;
+lv_obj_t * ui_Imagemode;
+lv_obj_t * ui_Label96;
+lv_obj_t * ui_Label97;
+lv_obj_t * ui_Label98;
+lv_obj_t * ui_Label99;
 void ui_event_modebutton7(lv_event_t * e);
 lv_obj_t * ui_modebutton7;
 lv_obj_t * ui_Label20;
@@ -142,6 +139,24 @@ lv_obj_t * ui_programbutton5;
 lv_obj_t * ui_Label25;
 lv_obj_t * ui_programbutton6;
 lv_obj_t * ui_Label26;
+void ui_event_programbutton(lv_event_t * e);
+lv_obj_t * ui_programbutton;
+lv_obj_t * ui_Label18;
+void ui_event_programbutton2(lv_event_t * e);
+lv_obj_t * ui_programbutton2;
+lv_obj_t * ui_Label22;
+void ui_event_programbutto3(lv_event_t * e);
+lv_obj_t * ui_programbutton3;
+lv_obj_t * ui_Label23;
+void ui_event_programbutto4(lv_event_t * e);
+lv_obj_t * ui_programbutton4;
+lv_obj_t * ui_Label24;
+void ui_event_programbutto5(lv_event_t * e);
+lv_obj_t * ui_programbutton5;
+lv_obj_t * ui_Label25;
+void ui_event_programbutto6(lv_event_t * e);
+lv_obj_t * ui_programbutton6;
+lv_obj_t * ui_Label26;
 void ui_event_Button6(lv_event_t * e);
 lv_obj_t * ui_Button6;
 lv_obj_t * ui_Panel14;
@@ -166,8 +181,13 @@ lv_obj_t * ui_Panel17;
 lv_obj_t * ui_Image16;
 lv_obj_t * ui_Label30;
 lv_obj_t * ui_Label27;
-void ui_event_rotationbutton2(lv_event_t * e);
-lv_obj_t * ui_rotationbutton2;
+void ui_event_rotationbutton56(lv_event_t * e);
+lv_obj_t * ui_rotationbutton56;
+
+void ui_event_Button8(lv_event_t *e);
+void ui_event_Button5(lv_event_t *e);
+void ui_event_modebutton8(lv_event_t *e);
+lv_obj_t * ui_modebutton8;
 lv_obj_t * ui_Panel19;
 lv_obj_t * ui_Image18;
 lv_obj_t * ui_Label32;
@@ -187,13 +207,10 @@ lv_obj_t * ui_Label33;
 lv_obj_t * ui_Label35;
 lv_obj_t * ui_BACKTOSETUP4;
 lv_obj_t * ui_setuptimebutton2;
-lv_obj_t * ui_rollerseconds2;
+lv_obj_t * ui_rollerseconds;
 lv_obj_t * ui_secondslabel2;
 lv_obj_t * ui_minuteslabel2;
-lv_obj_t * ui_rollerminutes2;
-void ui_event_Button8(lv_event_t *e);
-void ui_event_Button5(lv_event_t *e);
-void ui_event_modebutton8(lv_event_t *e);
+lv_obj_t * ui_rollerminutes;
 
 // SCREEN: ui_Screen5
 void ui_Screen5_screen_init(void);
@@ -324,8 +341,8 @@ void ui_Screen9_screen_init(void);
 lv_obj_t * ui_Screen9;
 lv_obj_t * ui_minuteslabel;
 lv_obj_t * ui_secondslabel;
-lv_obj_t * ui_rollerminutes;
-lv_obj_t * ui_rollerseconds;
+lv_obj_t * ui_rollerminutes2;
+lv_obj_t * ui_rollerseconds2;
 void ui_event_setuptimebutton(lv_event_t * e);
 lv_obj_t * ui_setuptimebutton;
 lv_obj_t * ui_BACKTOSETUP3;
@@ -366,7 +383,6 @@ void ui_event_modebutton(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_speedchange2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
@@ -410,14 +426,6 @@ void ui_event_modebutton5(lv_event_t * e)
         _ui_screen_change(&ui_Screen3, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen3_screen_init);
     }
 }
-void ui_event_speedchange2(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen2_screen_init);
-    }
-}
 void ui_event_modebutton6(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -448,7 +456,6 @@ void ui_event_modebutton7(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_speedchange2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
         _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
         _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
         _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
@@ -531,7 +538,7 @@ void ui_event_speedchange3(lv_event_t * e)
         _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen2_screen_init);
     }
 }
-void ui_event_rotationbutton2(lv_event_t * e)
+void ui_event_rotationbutton56(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
@@ -696,10 +703,8 @@ void ui_event_passwordarea(lv_event_t * e)
         _ui_flag_modify(ui_wifissid, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
         _ui_flag_modify(ui_wifilabel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
         _ui_flag_modify(ui_Switch1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_set_width(ui_passwordarea, 374);
-    lv_obj_set_height(ui_passwordarea, 200);
-    lv_obj_set_x(ui_passwordarea, -20);
-    lv_obj_set_y(ui_passwordarea, -139);
+
+
     }
 }
 void ui_event_okbutton(lv_event_t * e)
@@ -708,10 +713,6 @@ void ui_event_okbutton(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_passwordboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-            lv_obj_set_width(ui_passwordarea, 374);
-    lv_obj_set_height(ui_passwordarea, LV_SIZE_CONTENT);    /// 160
-    lv_obj_set_x(ui_passwordarea, 154);
-    lv_obj_set_y(ui_passwordarea, -69);
     }
 }
 void ui_event_backcustom(lv_event_t * e)
@@ -768,48 +769,61 @@ void ui_event_cleanbutton(lv_event_t *e)
 {
     lv_label_set_text(ui_Label9,"10");
 }
-void ui_event_modebutton8(lv_event_t *e)
+void ui_event_modebutton8(lv_event_t *e);
+void ui_event_programbutton(lv_event_t * e)
 {
-    lv_obj_add_flag(ui_BACKTOSETUP4, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_setuptimebutton2, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_rollerseconds2, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_secondslabel2, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_minuteslabel2, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_rollerminutes2, _UI_MODIFY_FLAG_TOGGLE);
-
-    lv_obj_add_flag(ui_Label35, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label33, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image21, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Button5, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image20, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Button8, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label31, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image19, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel20, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label34, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_modebutton8, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image14, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel9, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label29, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label32, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image18, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel19, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_rotationbutton2, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label27, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label30, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image16, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel17, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_speedchange3, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Label28, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image15, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel16, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Button4, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Image12, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Panel15, _UI_MODIFY_FLAG_TOGGLE);
-    lv_obj_add_flag(ui_Button7, _UI_MODIFY_FLAG_TOGGLE);
-
-
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "1");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
 }
+void ui_event_programbutton2(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "2");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_programbutton3(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "3");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+
+
+void ui_event_programbutton4(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "4");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_programbutton5(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "5");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+void ui_event_programbutton6(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+    lv_label_set_text(ui_Label55, "6");
+    _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+    }
+}
+
+
+
+
 
 ///////////////////// SCREENS ////////////////////
 

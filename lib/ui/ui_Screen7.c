@@ -197,7 +197,7 @@ void ui_Screen7_screen_init(void)
     lv_obj_set_x(ui_backtosetupbutton2, 183);
     lv_obj_set_y(ui_backtosetupbutton2, 131);
     lv_obj_set_align(ui_backtosetupbutton2, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_BACKTOSETUP2, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_backtosetupbutton2, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_backtosetupbutton2, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_clear_flag(ui_backtosetupbutton2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_backtosetupbutton2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);

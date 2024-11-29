@@ -751,6 +751,27 @@ void ui_event_modebutton3(lv_event_t *e) {
     }
 }
 
+void ui_event_modebutton8(lv_event_t * e){
+
+    if (ui_rollerminutes) {
+        lv_obj_add_flag(ui_rollerminutes, _UI_MODIFY_FLAG_TOGGLE);
+    } else {
+        printf("Error: ui_rollerminutes is NULL\n");
+    }
+
+    if (ui_rollerseconds) {
+        lv_obj_add_flag(ui_rollerseconds, _UI_MODIFY_FLAG_TOGGLE);
+    } else {
+        printf("Error: ui_rollerseconds is NULL\n");
+    }
+
+    lv_obj_add_flag(ui_BACKTOSETUP4, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_setuptimebutton2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_secondslabel2, _UI_MODIFY_FLAG_TOGGLE);
+    lv_obj_add_flag(ui_minuteslabel2, _UI_MODIFY_FLAG_TOGGLE);
+
+
+}
 
 void setup() {
     Serial.begin(115200);
