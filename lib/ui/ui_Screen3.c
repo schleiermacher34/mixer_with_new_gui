@@ -177,9 +177,9 @@ void ui_Screen3_screen_init(void)
 
     lv_obj_add_event_cb(ui_Button6, ui_event_Button6, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_programbutton, ui_event_programbutton, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_programbutton2, ui_event_programbutton2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_programbutton3, ui_event_programbutton3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_programbutton4, ui_event_programbutton4, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_programbutton3, ui_event_programbutton2, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_programbutton4, ui_event_programbutton3, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_programbutton2, ui_event_programbutton4, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_programbutton5, ui_event_programbutton5, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_programbutton6, ui_event_programbutton6, LV_EVENT_ALL, NULL);
 }

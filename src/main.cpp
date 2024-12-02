@@ -772,6 +772,18 @@ void ui_event_modebutton8(lv_event_t * e){
 
 
 }
+void ui_event_modebutton2(lv_event_t *e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        
+        _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+        lvgl_port_lock(-1);
+        lv_label_set_text(ui_Label4,  lv_label_get_text(ui_Label9));
+        lvgl_port_lock(1);
+    }
+}
 
 void setup() {
     Serial.begin(115200);
