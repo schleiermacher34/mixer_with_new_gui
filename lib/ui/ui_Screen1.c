@@ -585,7 +585,7 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_flag(ui_nasrojochki, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_nasrojochki, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    lv_obj_add_event_cb(ui_starstopbutton, ui_event_starstopbutton, LV_EVENT_ALL, NULL);
+
     lv_obj_add_event_cb(ui_modebutton, ui_event_modebutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_rotationbutton, ui_event_rotationbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_speedchange, ui_event_speedchange, LV_EVENT_ALL, NULL);

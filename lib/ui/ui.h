@@ -136,6 +136,7 @@ void ui_event_modebutton3(lv_event_t *e);
 void ui_event_Buttonrightline(lv_event_t *e);
 void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
+void ui_event_entermode(lv_event_t * e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);

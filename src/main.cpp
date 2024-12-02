@@ -126,6 +126,44 @@ volatile uint8_t modbusErrorCode = 0;
 volatile bool mototimeUpdated = false;
 volatile uint16_t mototimeValue = 0;
 
+#define MODBUS_SLAVE_ID 1
+#define VFD_REG_CONTROL 0x2000
+#define VFD_REG_SPEED   0x2001
+#define VFD_REG_ROTATION 0x2002
+
+uint16_t previousSpeed = 0;
+bool previousRotation = true; // true for forward, false for reverse
+
+SemaphoreHandle_t modbus_mutex;
+
+typedef enum {
+    MODBUS_CMD_WRITE_HREG,
+    // Add other command types if needed
+} ModbusCommandType;
+
+typedef struct {
+    ModbusCommandType cmdType;
+    uint8_t slaveId;
+    uint16_t reg;
+    uint16_t value;
+    std::function<bool (Modbus::ResultCode, uint16_t, void*)> callback;
+} ModbusCommand;
+
+QueueHandle_t modbusQueue;
+
+
+// Constants
+#define MAX_PROGRAMS 6  // Total number of programs
+#define NAMESPACE "programs"  // NVS namespace for program data
+
+// Structure to hold a single program's data
+typedef struct {
+    uint16_t speed;    // Speed value
+    bool rotation;     // Rotation value: true for forward, false for backward
+    uint32_t time;     // Time in seconds
+} AutoProgramData;
+
+
 /* Function to Convert RPM to Hertz */
 float rpmToHertz(int rpm) {
     return (float)rpm * 60.0;
@@ -372,6 +410,153 @@ void saveCurrentModeSettings() {
             break;
     }
 }
+
+bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data) {
+    if (event == Modbus::EX_SUCCESS) {
+        Serial.println("Modbus transaction successful.");
+    } else {
+        Serial.printf("Modbus error: %02X\n", event);
+    }
+    return true;
+}
+
+void stopMotor() {
+    uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, 0, modbusCallback);
+
+    if (result == 0) {
+        Serial.println("Motor stop command sent successfully.");
+    } else {
+        Serial.printf("Failed to send motor stop command. Modbus error: %d\n", result);
+    }
+}
+
+
+void runProgram(const ProgramData* program) {
+    Serial.printf("Running Program %d with %d steps.\n", program->programNumber, program->stepCount);
+
+    for (uint8_t i = 0; i < program->stepCount; i++) {
+        const StepData* step = &program->steps[i];
+        Serial.printf("Step %d: Speed=%d, Rotation=%s, Time=%d\n",
+                      i + 1, step->speed, step->rotation ? "Forward" : "Backward", step->time);
+
+        // Set speed
+        mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_SPEED, step->speed, modbusCallback);
+
+        // Set rotation and start motor
+        uint16_t commandValue = step->rotation ? 34 : 18;
+        mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, commandValue, modbusCallback);
+
+        // Wait for the specified time
+        vTaskDelay(pdMS_TO_TICKS(step->time * 1000));
+
+        // Stop the motor between steps if necessary
+        stopMotor();
+    }
+    Serial.println("Program execution completed.");
+}
+
+
+void event_handler_start_motor_button(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if (code == LV_EVENT_CLICKED) {
+
+
+        _ui_flag_modify(ui_Label1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Image1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Image2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+
+        Serial.println("Start/Stop button pressed...");
+
+        // Determine the current mode based on UI elements
+        uint8_t newMode;
+        bool modebutton_hidden = lv_obj_has_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN);
+        bool modebutton4_hidden = lv_obj_has_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN);
+        bool modebutton7_hidden = lv_obj_has_flag(ui_modebutton7, LV_OBJ_FLAG_HIDDEN);
+
+        if (modebutton4_hidden && modebutton7_hidden && !modebutton_hidden) {
+            newMode = MODE_MANUAL;
+            Serial.println("Mode determined: Manual");
+        } else if (modebutton_hidden && modebutton7_hidden && !modebutton4_hidden) {
+            newMode = MODE_AUTO;
+            Serial.println("Mode determined: Auto");
+        } else if (modebutton_hidden && modebutton4_hidden && !modebutton7_hidden) {
+            newMode = MODE_CUSTOM;
+            Serial.println("Mode determined: Custom");
+        } else {
+            newMode = currentMode;
+            Serial.println("Mode could not be determined based on UI elements. Keeping previous mode.");
+        }
+
+        // Stop motor if mode changed
+        if (currentMode != newMode) {
+            stopMotor();
+            Serial.println("Motor stopped due to mode change.");
+            currentMode = newMode;
+        }
+
+        if (currentMode == MODE_AUTO) {
+            // Load and run the program
+            const char* programNumberText = lv_label_get_text(ui_Label35);
+            uint8_t programNumber = atoi(programNumberText);
+
+            if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+                Serial.println("Invalid program number.");
+                return;
+            }
+
+            ProgramData program;
+            esp_err_t err = loadProgramFromNVS(programNumber, &program);
+            if (err == ESP_OK) {
+                runProgram(&program);
+            } else {
+                Serial.printf("Failed to load program %d.\n", programNumber);
+            }
+        } else if (currentMode == MODE_MANUAL) {
+            // Existing manual mode logic
+            // ...
+        } else if (currentMode == MODE_CUSTOM) {
+            // Custom mode logic
+            // ...
+        }
+    }
+}
+
+void rotationChangedEventHandler(lv_event_t * e) {
+    if (currentMode == MODE_MANUAL) {
+        bool currentRotation = getRotationFromUI();
+        uint16_t rotationValue = currentRotation ? 0 : 1;
+        xSemaphoreTake(modbus_mutex, portMAX_DELAY);
+        uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_ROTATION, rotationValue, modbusCallback);
+        xSemaphoreGive(modbus_mutex);
+        if (result == 0) {
+            Serial.printf("Rotation changed to %s.\n", currentRotation ? "Forward" : "Reverse");
+        } else {
+            Serial.printf("Failed to change rotation. Error: %d\n", result);
+        }
+    }
+}
+
+
+
+void modbusLoopTask(void *pvParameters) {
+    while (1) {
+        xSemaphoreTake(modbus_mutex, portMAX_DELAY);
+        mb.task();
+        xSemaphoreGive(modbus_mutex);
+        vTaskDelay(pdMS_TO_TICKS(10)); // Adjust delay as needed
+    }
+}
+
+
+
+
+
+
+
+
 // Forward declarations
 // void initializeSerial();
 // void event_handler_serial_input_save(lv_event_t *e);
@@ -407,7 +592,119 @@ void saveCurrentModeSettings() {
 // void vfdActualSpeedReadTask(void *pvParameters);
 // bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data);
 // esp_err_t saveProgramToNVS();
-// void saveProgramTask(void *pvParameters);
+void saveCurrentProgramData() {
+    // Get the current program number from ui_Label35
+    const char* programNumberText = lv_label_get_text(ui_Label35);
+    uint8_t programNumber = atoi(programNumberText);
+
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return;
+    }
+
+    AutoProgramData programData;
+
+    // Get speed from ui_Label30
+    const char* speedText = lv_label_get_text(ui_Label30);
+    programData.speed = atoi(speedText);
+
+    // Get rotation from ui_Label29 and ui_Label32
+    bool rotationForward = !lv_obj_has_flag(ui_Label32, LV_OBJ_FLAG_HIDDEN);
+    programData.rotation = rotationForward;
+
+    // Get time from ui_Label31
+    const char* timeText = lv_label_get_text(ui_Label31);
+    programData.time = atoi(timeText);
+
+    // Save the program to NVS
+    esp_err_t err = saveAutoProgramToNVS(programNumber, &programData);
+    if (err == ESP_OK) {
+        Serial.printf("Program %d saved successfully.\n", programNumber);
+    } else {
+        Serial.printf("Failed to save program %d.\n", programNumber);
+    }
+}
+
+esp_err_t saveAutoProgramToNVS(uint8_t programNumber, const AutoProgramData* programData) {
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read/write mode
+    err = nvs_open(NAMESPACE, NVS_READWRITE, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Create a key for the program number
+    char key[16];
+    snprintf(key, sizeof(key), "program_%d", programNumber);
+
+    // Save the program data as a blob
+    size_t dataSize = sizeof(AutoProgramData);
+    err = nvs_set_blob(nvsHandle, key, programData, dataSize);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) saving program data!\n", esp_err_to_name(err));
+    } else {
+        // Commit changes
+        err = nvs_commit(nvsHandle);
+        if (err != ESP_OK) {
+            Serial.printf("Error (%s) committing NVS changes!\n", esp_err_to_name(err));
+        } else {
+            Serial.printf("Program %d saved to NVS.\n", programNumber);
+        }
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
+
+esp_err_t loadAutoProgramFromNVS(uint8_t programNumber, AutoProgramData* programData) {
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read-only mode
+    err = nvs_open(NAMESPACE, NVS_READONLY, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Create a key for the program number
+    char key[16];
+    snprintf(key, sizeof(key), "program_%d", programNumber);
+
+    // Determine the required size of the data
+    size_t requiredSize = sizeof(AutoProgramData);
+
+    // Load the program data
+    err = nvs_get_blob(nvsHandle, key, programData, &requiredSize);
+    if (err == ESP_OK) {
+        Serial.printf("Program %d loaded from NVS.\n", programNumber);
+    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+        Serial.printf("Program %d not found in NVS.\n", programNumber);
+    } else {
+        Serial.printf("Error (%s) loading program data!\n", esp_err_to_name(err));
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
+
+
+
 // esp_err_t loadProgramFromNVS(uint16_t programIndex, ProgramData *programData);
 // void runProgram(const ProgramData *programData);
 // void runProgramTask(void *pvParameters);
@@ -810,6 +1107,13 @@ void setup() {
     }
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_BUF_SIZE);
 
+        // Initialize NVS
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
 
     /* Initialize the display device */
     static lv_disp_drv_t disp_drv;
@@ -931,6 +1235,8 @@ void setup() {
     } else {
         Serial.println("Error: ui_Switch1 is NULL");
     }
+    lv_obj_add_event_cb(ui_rotationbutton, rotationChangedEventHandler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_starstopbutton, event_handler_start_motor_button, LV_EVENT_CLICKED, NULL);
     // /* Attach event handlers (check for null pointers) */
     // if (ui_Screen2_Button8) {
     //     lv_obj_add_event_cb(ui_Screen2_Button8, event_handler_scan_button, LV_EVENT_CLICKED, NULL);
@@ -1005,16 +1311,35 @@ void setup() {
     //     Serial.println("ui_Screen1_Button8 is NULL");
     // }
 
+
+
     save_program_semaphore = xSemaphoreCreateBinary();
 
     wifi_connect_semaphore = xSemaphoreCreateBinary();
     wifi_scan_semaphore = xSemaphoreCreateBinary();
     wifi_mutex = xSemaphoreCreateMutex();
     otaSemaphore = xSemaphoreCreateBinary();
+        modbus_mutex = xSemaphoreCreateMutex();
 
+    /* Initialize Modbus Serial */
+    pinMode(MODBUS_DE_RE_PIN, OUTPUT);
+    digitalWrite(MODBUS_DE_RE_PIN, LOW); // Receiver enabled by default
+
+    // Initialize Modbus serial port with new TX and RX pins
+    ModbusSerial.begin(9600, SERIAL_8N1, MODBUS_RX_PIN, MODBUS_TX_PIN);
+    if (!ModbusSerial) {
+        Serial.println("Modbus Serial initialization failed");
+        while (1); // Halt if Modbus initialization fails
+    }
+
+    mb.begin(&ModbusSerial, MODBUS_DE_RE_PIN); // Initialize Modbus with DE/RE pin
+    mb.master(); // Set as Modbus master
+
+ nvs_mutex = xSemaphoreCreateMutex();
     /* Create tasks */
     xTaskCreate(wifi_connect_task, "WiFi Connect Task", 3072, NULL, 1, NULL);
     xTaskCreate(wifi_scan_task, "WiFi Scan Task", 3072, NULL, 1, NULL);
+    xTaskCreate(modbusLoopTask, "Modbus Loop Task", 2048, NULL, 2, NULL);
     // xTaskCreate(server_connection_task, "Server Connection Task", 16384, NULL, 1, NULL);
 
     // // Create the OTA update task

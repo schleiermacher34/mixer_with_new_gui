@@ -123,6 +123,7 @@ void ui_event_modebutton3(lv_event_t *e);
 void ui_event_Buttonrightline(lv_event_t *e);
 void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
+void ui_event_entermode(lv_event_t * e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -365,18 +366,21 @@ const lv_img_dsc_t * ui_imgset_rectangle_[1] = {&ui_img_rectangle_582_png};
 ///////////////////// ANIMATIONS ////////////////////
 
 ///////////////////// FUNCTIONS ////////////////////
-void ui_event_starstopbutton(lv_event_t * e)
+
+void ui_event_entermode(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_Label1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Image1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Label2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Image2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+
+    if(event_code == LV_EVENT_CLICKED){
+        if(lv_obj_has_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN)){
+        lv_label_set_text(ui_Label30, lv_label_get_text(ui_Label9));
+        _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen4_screen_init);
+        }else{
+            _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen1_screen_init);
+        }
     }
 }
+
 void ui_event_modebutton(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
