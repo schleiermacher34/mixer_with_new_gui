@@ -39,8 +39,21 @@
 #define LVGL_TASK_PRIORITY      (2)
 #define LVGL_BUF_SIZE           (ESP_PANEL_LCD_H_RES * 40)
 
+
+
 /* Define constants for the program data */
-#define MAX_STEPS 3  // Maximum steps in a program
+#define MAX_STEPS 10  // Adjust as needed
+#define MAX_PROGRAMS 6  // Total number of programs
+#define NAMESPACE "programs"  // NVS namespace for program data
+
+#define MAX_CUSTOM_PERIODS 3  // Number of periods in custom mode
+
+typedef struct {
+    uint32_t times[MAX_CUSTOM_PERIODS];       // Time durations for each period in seconds
+    uint16_t speeds[MAX_CUSTOM_PERIODS + 1];  // Speeds at the boundaries of periods
+    bool rotations[MAX_CUSTOM_PERIODS];       // Rotation values for each period
+} CustomProgramData;
+
 
 // OTA update server details
 #define CURRENT_FIRMWARE_VERSION "1.0.0"
@@ -56,23 +69,9 @@ SemaphoreHandle_t save_program_semaphore = NULL; // Semaphore for saving program
 SemaphoreHandle_t run_program_semaphore = NULL;
 SemaphoreHandle_t nvs_mutex;
 SemaphoreHandle_t wifi_mutex;
+SemaphoreHandle_t modbus_mutex;
 
-/* Structure to hold the program data */
-struct ProgramData {
-    uint16_t startRpm;           // Starting RPM from ui_Screen3_Roller9
-    uint16_t repeatCount;        // Repeat count from ui_Screen3_Roller18
-    uint16_t times[MAX_STEPS];   // Time for each step
-    uint16_t speeds[MAX_STEPS];  // Speeds for each step
-    bool directions[MAX_STEPS];  // Directions for each step
-};
-
-typedef struct {
-    bool direction;       // true for forward, false for reverse
-    uint16_t speed;       // Speed in RPM
-    bool autoMode;        // true for auto, false for manual
-    // Add other settings as needed
-} MotorConfig;
-// Mode definitions
+/* Mode definitions */
 #define MODE_MANUAL 0
 #define MODE_AUTO   1
 #define MODE_CUSTOM 2
@@ -80,6 +79,21 @@ typedef struct {
 // Current mode variable
 uint8_t currentMode = MODE_MANUAL;  // Start with Manual mode
 
+/* Define StepData struct */
+typedef struct {
+    uint16_t speed;       // Speed value
+    bool rotation;        // Rotation direction (true for forward, false for reverse)
+    uint32_t time;        // Time in seconds
+} StepData;
+
+/* Define ProgramData struct */
+typedef struct {
+    uint8_t programNumber;    // Program number
+    StepData steps[MAX_STEPS]; // Array of steps
+    uint8_t stepCount;         // Number of steps in the program
+} ProgramData;
+
+/* Define other structs as needed */
 typedef struct {
     uint16_t speed;    // Speed value
     bool rotation;     // Rotation direction (true for forward, false for reverse)
@@ -100,6 +114,7 @@ ManualModeSettings manualModeSettings;
 AutoModeSettings autoModeSettings;
 CustomModeSettings customModeSettings;
 
+// Rest of your code...
 
 ESP_Panel *panel = NULL;
 
@@ -130,39 +145,6 @@ volatile uint16_t mototimeValue = 0;
 #define VFD_REG_CONTROL 0x2000
 #define VFD_REG_SPEED   0x2001
 #define VFD_REG_ROTATION 0x2002
-
-uint16_t previousSpeed = 0;
-bool previousRotation = true; // true for forward, false for reverse
-
-SemaphoreHandle_t modbus_mutex;
-
-typedef enum {
-    MODBUS_CMD_WRITE_HREG,
-    // Add other command types if needed
-} ModbusCommandType;
-
-typedef struct {
-    ModbusCommandType cmdType;
-    uint8_t slaveId;
-    uint16_t reg;
-    uint16_t value;
-    std::function<bool (Modbus::ResultCode, uint16_t, void*)> callback;
-} ModbusCommand;
-
-QueueHandle_t modbusQueue;
-
-
-// Constants
-#define MAX_PROGRAMS 6  // Total number of programs
-#define NAMESPACE "programs"  // NVS namespace for program data
-
-// Structure to hold a single program's data
-typedef struct {
-    uint16_t speed;    // Speed value
-    bool rotation;     // Rotation value: true for forward, false for backward
-    uint32_t time;     // Time in seconds
-} AutoProgramData;
-
 
 /* Function to Convert RPM to Hertz */
 float rpmToHertz(int rpm) {
@@ -282,10 +264,291 @@ extern lv_obj_t *ui_rotationbutton;
 extern lv_obj_t *ui_Label4;
 extern lv_obj_t *ui_Label13;
 
+bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data) {
+    if (event == Modbus::EX_SUCCESS) {
+        Serial.println("Modbus transaction successful.");
+    } else {
+        Serial.printf("Modbus error: %02X\n", event);
+    }
+    return true;
+}
+void stopMotor() {
+    uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, 0, modbusCallback);
+
+    if (result == 0) {
+        Serial.println("Motor stop command sent successfully.");
+    } else {
+        Serial.printf("Failed to send motor stop command. Modbus error: %d\n", result);
+    }
+}
+
+#define CUSTOM_NAMESPACE "custom_program"  // NVS namespace for custom program data
+
+esp_err_t saveCustomProgramToNVS(const CustomProgramData* customData) {
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read/write mode
+    err = nvs_open(CUSTOM_NAMESPACE, NVS_READWRITE, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Save the custom program data as a blob
+    size_t dataSize = sizeof(CustomProgramData);
+    err = nvs_set_blob(nvsHandle, "custom_data", customData, dataSize);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) saving custom program data!\n", esp_err_to_name(err));
+    } else {
+        // Commit changes
+        err = nvs_commit(nvsHandle);
+        if (err != ESP_OK) {
+            Serial.printf("Error (%s) committing NVS changes!\n", esp_err_to_name(err));
+        } else {
+            Serial.println("Custom program saved to NVS.");
+        }
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
 
 
 
 
+uint32_t getTimeFromUILabel(lv_obj_t* label) {
+    const char* text = lv_label_get_text(label);
+    return (uint32_t)atoi(text);  // Assuming time is in seconds
+}
+
+uint16_t getSpeedFromUILabel(lv_obj_t* label) {
+    const char* text = lv_label_get_text(label);
+    return (uint16_t)atoi(text);  // Speed in RPM
+}
+
+bool getRotationFromUI(lv_obj_t* rotationObj) {
+    // Assuming rotationObj is a switch or button that represents rotation state
+    // Return true for forward, false for reverse
+    return lv_obj_has_state(rotationObj, LV_STATE_CHECKED);
+}
+void collectCustomProgramData(CustomProgramData* customData) {
+    // Replace the ui_* variables with your actual UI element variables
+
+    // Collect times
+    customData->times[0] = getTimeFromUILabel(ui_time1);
+    customData->times[1] = getTimeFromUILabel(ui_time3);
+    customData->times[2] = getTimeFromUILabel(ui_time4);
+
+    // Collect speeds
+    customData->speeds[0] = getSpeedFromUILabel(ui_rpmvalue);
+    customData->speeds[1] = getSpeedFromUILabel(ui_rpmvalue2);
+    customData->speeds[2] = getSpeedFromUILabel(ui_rpmvalue3);
+    customData->speeds[3] = getSpeedFromUILabel(ui_rpmvalue4);
+
+    // Collect rotations
+    customData->rotations[0] = getRotationFromUI(ui_rotationbutton1);
+    customData->rotations[1] = getRotationFromUI(ui_rotationbutton3);
+    customData->rotations[2] = getRotationFromUI(ui_rotationbutton4);
+}
+
+void event_handler_custom_value_changed(lv_event_t* e) {
+    // Collect data and save
+    CustomProgramData customData;
+    collectCustomProgramData(&customData);
+    esp_err_t err = saveCustomProgramToNVS(&customData);
+    if (err == ESP_OK) {
+        Serial.println("Custom program saved automatically.");
+    } else {
+        Serial.println("Failed to save custom program.");
+    }
+}
+
+esp_err_t loadCustomProgramFromNVS(CustomProgramData* customData) {
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read-only mode
+    err = nvs_open(CUSTOM_NAMESPACE, NVS_READONLY, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle for reading!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Determine the required size of the data
+    size_t dataSize = sizeof(CustomProgramData);
+
+    // Load the custom program data
+    err = nvs_get_blob(nvsHandle, "custom_data", customData, &dataSize);
+    if (err == ESP_OK) {
+        Serial.println("Custom program loaded from NVS.");
+    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+        Serial.println("Custom program not found in NVS.");
+    } else {
+        Serial.printf("Error (%s) loading custom program data!\n", esp_err_to_name(err));
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
+
+
+esp_err_t saveAutoProgramToNVS(uint8_t programNumber, const ProgramData* programData) {
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read/write mode
+    err = nvs_open(NAMESPACE, NVS_READWRITE, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Create a key for the program number
+    char key[16];
+    snprintf(key, sizeof(key), "program_%d", programNumber);
+
+    // Save the program data as a blob
+    size_t dataSize = sizeof(ProgramData);
+    err = nvs_set_blob(nvsHandle, key, programData, dataSize);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) saving program data!\n", esp_err_to_name(err));
+    } else {
+        // Commit changes
+        err = nvs_commit(nvsHandle);
+        if (err != ESP_OK) {
+            Serial.printf("Error (%s) committing NVS changes!\n", esp_err_to_name(err));
+        } else {
+            Serial.printf("Program %d saved to NVS.\n", programNumber);
+        }
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
+
+
+esp_err_t loadProgramFromNVS(uint8_t programNumber, ProgramData* programData) {
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t nvsHandle;
+    esp_err_t err;
+
+    // Open NVS handle in read-only mode
+    err = nvs_open(NAMESPACE, NVS_READONLY, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return err;
+    }
+
+    // Create a key for the program number
+    char key[16];
+    snprintf(key, sizeof(key), "program_%d", programNumber);
+
+    // Determine the required size of the data
+    size_t requiredSize = sizeof(ProgramData);
+
+    // Load the program data
+    err = nvs_get_blob(nvsHandle, key, programData, &requiredSize);
+    if (err == ESP_OK) {
+        Serial.printf("Program %d loaded from NVS.\n", programNumber);
+    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
+        Serial.printf("Program %d not found in NVS.\n", programNumber);
+    } else {
+        Serial.printf("Error (%s) loading program data!\n", esp_err_to_name(err));
+    }
+
+    // Close NVS handle
+    nvs_close(nvsHandle);
+    return err;
+}
+
+void saveCurrentProgramData() {
+    // Get the current program number from ui_Label35
+    const char* programNumberText = lv_label_get_text(ui_Label35);
+    uint8_t programNumber = atoi(programNumberText);
+
+    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
+        Serial.println("Invalid program number.");
+        return;
+    }
+
+    ProgramData programData;
+    programData.programNumber = programNumber;
+    programData.stepCount = 1; // Assuming one step for simplicity
+
+    // Initialize the first step
+    StepData step;
+
+    // Get speed from ui_Label30
+    const char* speedText = lv_label_get_text(ui_Label30);
+    step.speed = atoi(speedText);
+
+    // Get rotation from ui_Label29 and ui_Label32
+    bool rotationForward = !lv_obj_has_flag(ui_Label32, LV_OBJ_FLAG_HIDDEN);
+    step.rotation = rotationForward;
+
+    // Get time from ui_Label31
+    const char* timeText = lv_label_get_text(ui_Label31);
+    step.time = atoi(timeText);
+
+    // Add the step to the program data
+    programData.steps[0] = step;
+
+    // Save the program to NVS
+    esp_err_t err = saveAutoProgramToNVS(programNumber, &programData);
+    if (err == ESP_OK) {
+        Serial.printf("Program %d saved successfully.\n", programNumber);
+    } else {
+        Serial.printf("Failed to save program %d.\n", programNumber);
+    }
+}
+
+void runCustomProgram(const CustomProgramData* customData) {
+    for (int i = 0; i < MAX_CUSTOM_PERIODS; i++) {
+        uint16_t startSpeed = customData->speeds[i];
+        uint16_t endSpeed = customData->speeds[i + 1];
+        uint32_t periodTime = customData->times[i];
+        bool rotation = customData->rotations[i];
+
+        Serial.printf("Period %d: Start Speed=%d RPM, End Speed=%d RPM, Time=%d seconds, Rotation=%s\n",
+                      i + 1, startSpeed, endSpeed, periodTime, rotation ? "Forward" : "Reverse");
+
+        // Set rotation
+        uint16_t rotationValue = rotation ? 0 : 1; // Adjust based on your rotation commands
+        mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_ROTATION, rotationValue, modbusCallback);
+
+        // Calculate speed increment per step
+        const uint32_t rampSteps = 100; // Adjust for desired smoothness
+        uint32_t stepDelay = (periodTime * 1000) / rampSteps; // Convert to milliseconds
+        float speedIncrement = (float)(endSpeed - startSpeed) / rampSteps;
+
+        // Start motor
+        uint16_t commandValue = rotation ? 34 : 18; // Command to start motor
+        mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, commandValue, modbusCallback);
+
+        for (uint32_t step = 0; step <= rampSteps; step++) {
+            uint16_t currentSpeed = startSpeed + (uint16_t)(speedIncrement * step);
+            mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_SPEED, currentSpeed, modbusCallback);
+            vTaskDelay(pdMS_TO_TICKS(stepDelay));
+        }
+
+        // Stop the motor between periods if necessary
+        stopMotor();
+    }
+    Serial.println("Custom program execution completed.");
+}
 
 uint16_t getSpeedFromUI() {
     const char *speedText = lv_label_get_text(ui_Label4);
@@ -411,24 +674,9 @@ void saveCurrentModeSettings() {
     }
 }
 
-bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data) {
-    if (event == Modbus::EX_SUCCESS) {
-        Serial.println("Modbus transaction successful.");
-    } else {
-        Serial.printf("Modbus error: %02X\n", event);
-    }
-    return true;
-}
 
-void stopMotor() {
-    uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, 0, modbusCallback);
 
-    if (result == 0) {
-        Serial.println("Motor stop command sent successfully.");
-    } else {
-        Serial.printf("Failed to send motor stop command. Modbus error: %d\n", result);
-    }
-}
+
 
 
 void runProgram(const ProgramData* program) {
@@ -454,6 +702,8 @@ void runProgram(const ProgramData* program) {
     }
     Serial.println("Program execution completed.");
 }
+
+
 
 
 void event_handler_start_motor_button(lv_event_t * e) {
@@ -517,12 +767,18 @@ void event_handler_start_motor_button(lv_event_t * e) {
         } else if (currentMode == MODE_MANUAL) {
             // Existing manual mode logic
             // ...
-        } else if (currentMode == MODE_CUSTOM) {
-            // Custom mode logic
-            // ...
+              if (currentMode == MODE_CUSTOM) {
+            // Load and run the custom program
+            CustomProgramData customData;
+            esp_err_t err = loadCustomProgramFromNVS(&customData);
+            if (err == ESP_OK) {
+                runCustomProgram(&customData);
+            } else {
+                Serial.println("Failed to load custom program.");
+            }
         }
     }
-}
+}}
 
 void rotationChangedEventHandler(lv_event_t * e) {
     if (currentMode == MODE_MANUAL) {
@@ -592,116 +848,8 @@ void modbusLoopTask(void *pvParameters) {
 // void vfdActualSpeedReadTask(void *pvParameters);
 // bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data);
 // esp_err_t saveProgramToNVS();
-void saveCurrentProgramData() {
-    // Get the current program number from ui_Label35
-    const char* programNumberText = lv_label_get_text(ui_Label35);
-    uint8_t programNumber = atoi(programNumberText);
 
-    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
-        Serial.println("Invalid program number.");
-        return;
-    }
 
-    AutoProgramData programData;
-
-    // Get speed from ui_Label30
-    const char* speedText = lv_label_get_text(ui_Label30);
-    programData.speed = atoi(speedText);
-
-    // Get rotation from ui_Label29 and ui_Label32
-    bool rotationForward = !lv_obj_has_flag(ui_Label32, LV_OBJ_FLAG_HIDDEN);
-    programData.rotation = rotationForward;
-
-    // Get time from ui_Label31
-    const char* timeText = lv_label_get_text(ui_Label31);
-    programData.time = atoi(timeText);
-
-    // Save the program to NVS
-    esp_err_t err = saveAutoProgramToNVS(programNumber, &programData);
-    if (err == ESP_OK) {
-        Serial.printf("Program %d saved successfully.\n", programNumber);
-    } else {
-        Serial.printf("Failed to save program %d.\n", programNumber);
-    }
-}
-
-esp_err_t saveAutoProgramToNVS(uint8_t programNumber, const AutoProgramData* programData) {
-    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
-        Serial.println("Invalid program number.");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    nvs_handle_t nvsHandle;
-    esp_err_t err;
-
-    // Open NVS handle in read/write mode
-    err = nvs_open(NAMESPACE, NVS_READWRITE, &nvsHandle);
-    if (err != ESP_OK) {
-        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-        return err;
-    }
-
-    // Create a key for the program number
-    char key[16];
-    snprintf(key, sizeof(key), "program_%d", programNumber);
-
-    // Save the program data as a blob
-    size_t dataSize = sizeof(AutoProgramData);
-    err = nvs_set_blob(nvsHandle, key, programData, dataSize);
-    if (err != ESP_OK) {
-        Serial.printf("Error (%s) saving program data!\n", esp_err_to_name(err));
-    } else {
-        // Commit changes
-        err = nvs_commit(nvsHandle);
-        if (err != ESP_OK) {
-            Serial.printf("Error (%s) committing NVS changes!\n", esp_err_to_name(err));
-        } else {
-            Serial.printf("Program %d saved to NVS.\n", programNumber);
-        }
-    }
-
-    // Close NVS handle
-    nvs_close(nvsHandle);
-    return err;
-}
-
-esp_err_t loadAutoProgramFromNVS(uint8_t programNumber, AutoProgramData* programData) {
-    if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
-        Serial.println("Invalid program number.");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    nvs_handle_t nvsHandle;
-    esp_err_t err;
-
-    // Open NVS handle in read-only mode
-    err = nvs_open(NAMESPACE, NVS_READONLY, &nvsHandle);
-    if (err != ESP_OK) {
-        Serial.printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
-        return err;
-    }
-
-    // Create a key for the program number
-    char key[16];
-    snprintf(key, sizeof(key), "program_%d", programNumber);
-
-    // Determine the required size of the data
-    size_t requiredSize = sizeof(AutoProgramData);
-
-    // Load the program data
-    err = nvs_get_blob(nvsHandle, key, programData, &requiredSize);
-    if (err == ESP_OK) {
-        Serial.printf("Program %d loaded from NVS.\n", programNumber);
-    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        Serial.printf("Program %d not found in NVS.\n", programNumber);
-    } else {
-        Serial.printf("Error (%s) loading program data!\n", esp_err_to_name(err));
-    }
-
-    // Close NVS handle
-    nvs_close(nvsHandle);
-    return err;
-}
 
 
 
@@ -1162,13 +1310,7 @@ void setup() {
     /* Initialize UI */
     ui_init();
 
-    // Initialize NVS
-    esp_err_t nvs_err = nvs_flash_init();
-    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        nvs_err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(nvs_err);
+
 
     // Initialize Wi-Fi in station mode
     WiFi.mode(WIFI_STA);
@@ -1237,6 +1379,22 @@ void setup() {
     }
     lv_obj_add_event_cb(ui_rotationbutton, rotationChangedEventHandler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(ui_starstopbutton, event_handler_start_motor_button, LV_EVENT_CLICKED, NULL);
+    // Attach to time inputs
+lv_obj_add_event_cb(ui_time1, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_time4, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_time3, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+
+// Attach to speed inputs
+lv_obj_add_event_cb(ui_rpmvalue, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_rpmvalue2, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_rpmvalue3, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_rpmvalue4, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+
+// Attach to rotation inputs
+lv_obj_add_event_cb(ui_rotationbutton1, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_rotationbutton3, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(ui_rotationbutton4, event_handler_custom_value_changed, LV_EVENT_VALUE_CHANGED, NULL);
+
     // /* Attach event handlers (check for null pointers) */
     // if (ui_Screen2_Button8) {
     //     lv_obj_add_event_cb(ui_Screen2_Button8, event_handler_scan_button, LV_EVENT_CLICKED, NULL);

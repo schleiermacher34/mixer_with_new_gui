@@ -70,6 +70,11 @@ lv_obj_t * ui_Label21;
 void ui_event_settingsbutton(lv_event_t * e);
 lv_obj_t * ui_settingsbutton;
 lv_obj_t * ui_nasrojochki;
+void ui_event_errormesssage1(lv_event_t * e);
+lv_obj_t * ui_messagePanel1;
+lv_obj_t * ui_messageLabel1;
+lv_obj_t * ui_messagebutoon1;
+lv_obj_t * ui_messagebutoon1label;
 
 
 // SCREEN: ui_Screen2
@@ -366,6 +371,13 @@ const lv_img_dsc_t * ui_imgset_rectangle_[1] = {&ui_img_rectangle_582_png};
 ///////////////////// ANIMATIONS ////////////////////
 
 ///////////////////// FUNCTIONS ////////////////////
+void ui_event_errormesssage1(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED){
+        _ui_flag_modify(ui_messagePanel1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
 
 void ui_event_entermode(lv_event_t * e)
 {

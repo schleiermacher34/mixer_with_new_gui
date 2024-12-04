@@ -585,6 +585,55 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_flag(ui_nasrojochki, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_nasrojochki, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
+    ui_messagePanel1 = lv_obj_create(ui_Screen1);
+    lv_obj_set_x(ui_messagePanel1, 0);
+    lv_obj_set_y(ui_messagePanel1, 0);
+    lv_obj_set_width(ui_messagePanel1, 200);
+    lv_obj_set_height(ui_messagePanel1, 200);
+    lv_obj_set_style_bg_color(ui_messagePanel1, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_messagePanel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_messagePanel1, lv_color_hex(0xE63029), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_messagePanel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_messagePanel1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_messageLabel1 = lv_label_create(ui_messagePanel1);
+    lv_obj_set_width(ui_messageLabel1, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_messageLabel1, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_messageLabel1, -3);
+    lv_obj_set_y(ui_messageLabel1, 0);
+    lv_obj_set_align(ui_messageLabel1, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_messageLabel1, "error message");
+    lv_obj_set_style_text_color(ui_messageLabel1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_messageLabel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_messageLabel1, &lv_font_montserrat_46, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_messagebutoon1 = lv_btn_create(ui_messagePanel1);
+    lv_obj_set_width(ui_messagebutoon1, 132);   /// 1
+    lv_obj_set_height(ui_messagebutoon1, 132); 
+    lv_obj_set_x(ui_messagebutoon1, -3);
+    lv_obj_set_y(ui_messagebutoon1, 98);
+    lv_obj_set_align(ui_messagebutoon1, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_messagebutoon1, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_clear_flag(ui_messagebutoon1, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_messagebutoon1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_messagebutoon1, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_messagebutoon1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_messagebutoon1, lv_color_hex(0xE63029), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_messagebutoon1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_messagebutoon1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_messagebutoon1label = lv_label_create(ui_messagebutoon1);
+    lv_obj_set_width(ui_messagebutoon1label, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_messagebutoon1label, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_messagebutoon1label, -3);
+    lv_obj_set_y(ui_messagebutoon1label, 0);
+    lv_obj_set_align(ui_messagebutoon1label, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_messagebutoon1label, "close");
+    lv_obj_set_style_text_color(ui_messagebutoon1label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_messagebutoon1label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_messagebutoon1label, &lv_font_montserrat_46, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+
 
     lv_obj_add_event_cb(ui_modebutton, ui_event_modebutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_rotationbutton, ui_event_rotationbutton, LV_EVENT_ALL, NULL);
@@ -595,5 +644,6 @@ void ui_Screen1_screen_init(void)
     lv_obj_add_event_cb(ui_modebutton7, ui_event_modebutton7, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_customsetupbutton, ui_event_customsetupbutton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_settingsbutton, ui_event_settingsbutton, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_messagebutoon1, ui_event_errormesssage1,  LV_EVENT_ALL, NULL);
 
 }

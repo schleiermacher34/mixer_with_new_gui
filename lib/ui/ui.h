@@ -85,6 +85,11 @@ extern lv_obj_t * ui_Label21;
 void ui_event_settingsbutton(lv_event_t * e);
 extern lv_obj_t * ui_settingsbutton;
 extern lv_obj_t * ui_nasrojochki;
+void ui_event_errormesssage1(lv_event_t * e);
+extern lv_obj_t * ui_messagePanel1;
+extern lv_obj_t * ui_messageLabel1;
+extern lv_obj_t * ui_messagebutoon1;
+extern lv_obj_t * ui_messagebutoon1label;
 // SCREEN: ui_Screen2
 void ui_Screen2_screen_init(void);
 extern lv_obj_t * ui_Screen2;
