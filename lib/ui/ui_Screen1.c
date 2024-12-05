@@ -586,9 +586,9 @@ void ui_Screen1_screen_init(void)
     lv_obj_clear_flag(ui_nasrojochki, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_messagePanel1 = lv_obj_create(ui_Screen1);
-    lv_obj_set_x(ui_messagePanel1, 0);
+    lv_obj_set_x(ui_messagePanel1, 400);
     lv_obj_set_y(ui_messagePanel1, 0);
-    lv_obj_set_width(ui_messagePanel1, 200);
+    lv_obj_set_width(ui_messagePanel1, 300);
     lv_obj_set_height(ui_messagePanel1, 200);
     lv_obj_set_style_bg_color(ui_messagePanel1, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_messagePanel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -605,7 +605,7 @@ void ui_Screen1_screen_init(void)
     lv_label_set_text(ui_messageLabel1, "error message");
     lv_obj_set_style_text_color(ui_messageLabel1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_messageLabel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_messageLabel1, &lv_font_montserrat_46, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_messageLabel1, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_messagebutoon1 = lv_btn_create(ui_messagePanel1);
     lv_obj_set_width(ui_messagebutoon1, 132);   /// 1

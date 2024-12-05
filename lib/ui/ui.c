@@ -389,6 +389,7 @@ void ui_event_entermode(lv_event_t * e)
         _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen4_screen_init);
         }else{
             _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen1_screen_init);
+            lv_label_set_text(ui_Label4, lv_label_get_text(ui_Label9));
         }
     }
 }

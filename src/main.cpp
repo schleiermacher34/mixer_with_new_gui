@@ -708,9 +708,7 @@ void runProgram(const ProgramData* program) {
 
 void event_handler_start_motor_button(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
     if (code == LV_EVENT_CLICKED) {
-
 
         _ui_flag_modify(ui_Label1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
         _ui_flag_modify(ui_Image1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
@@ -764,10 +762,29 @@ void event_handler_start_motor_button(lv_event_t * e) {
             } else {
                 Serial.printf("Failed to load program %d.\n", programNumber);
             }
+
         } else if (currentMode == MODE_MANUAL) {
-            // Existing manual mode logic
-            // ...
-              if (currentMode == MODE_CUSTOM) {
+            // Manual mode logic
+            uint16_t speed = getSpeedFromUI();
+            bool rotation = getRotationFromUI();
+
+            Serial.printf("Manual Mode: Speed=%d, Rotation=%s\n", speed, rotation ? "Forward" : "Reverse");
+
+            // Set rotation
+            uint16_t rotationValue = rotation ? 0 : 1;
+            uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_ROTATION, rotationValue, modbusCallback);
+            Serial.printf("Set rotation command result: %d\n", result);
+
+            // Set speed
+            result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_SPEED, speed, modbusCallback);
+            Serial.printf("Set speed command result: %d\n", result);
+
+            // Start motor
+            uint16_t commandValue = rotation ? 34 : 18;
+            result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, commandValue, modbusCallback);
+            Serial.printf("Start motor command result: %d\n", result);
+
+        } else if (currentMode == MODE_CUSTOM) {
             // Load and run the custom program
             CustomProgramData customData;
             esp_err_t err = loadCustomProgramFromNVS(&customData);
@@ -778,7 +795,9 @@ void event_handler_start_motor_button(lv_event_t * e) {
             }
         }
     }
-}}
+}
+
+
 
 void rotationChangedEventHandler(lv_event_t * e) {
     if (currentMode == MODE_MANUAL) {
@@ -1492,7 +1511,7 @@ lv_obj_add_event_cb(ui_rotationbutton4, event_handler_custom_value_changed, LV_E
 
     mb.begin(&ModbusSerial, MODBUS_DE_RE_PIN); // Initialize Modbus with DE/RE pin
     mb.master(); // Set as Modbus master
-
+ModbusSerial.setTimeout(1000);
  nvs_mutex = xSemaphoreCreateMutex();
     /* Create tasks */
     xTaskCreate(wifi_connect_task, "WiFi Connect Task", 3072, NULL, 1, NULL);
