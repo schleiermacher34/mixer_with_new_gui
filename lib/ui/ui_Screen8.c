@@ -397,5 +397,8 @@ void ui_Screen8_screen_init(void)
     lv_obj_add_event_cb(ui_speedbutton3, ui_event_speedbutton3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_speedbutton4, ui_event_speedbutton4, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_speedbutton5, ui_event_speedbutton5, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_time1button, ui_event_timeset, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_time1button2, ui_event_timeset, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_time1button3, ui_event_timeset, LV_EVENT_ALL, NULL);
 
 }

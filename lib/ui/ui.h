@@ -30,6 +30,8 @@ void ui_Screen1_screen_init(void);
 extern lv_obj_t * ui_Screen1;
 extern lv_obj_t * ui_Panel1;
 extern lv_obj_t * ui_Panel2;
+extern lv_obj_t * ui_Label107;
+extern lv_obj_t * ui_Label108;
 void ui_event_starstopbutton(lv_event_t * e);
 extern lv_obj_t * ui_starstopbutton;
 extern lv_obj_t * ui_Label1;
@@ -218,12 +220,9 @@ extern lv_obj_t * ui_Button5;
 extern lv_obj_t * ui_Image21;
 extern lv_obj_t * ui_Label33;
 extern lv_obj_t * ui_Label35;
-extern lv_obj_t * ui_BACKTOSETUP4;
-extern lv_obj_t * ui_setuptimebutton2;
-extern lv_obj_t * ui_rollerseconds2;
-extern lv_obj_t * ui_secondslabel2;
-extern lv_obj_t * ui_minuteslabel2;
-extern lv_obj_t * ui_rollerminutes2;
+extern lv_obj_t * ui_Label105;
+extern lv_obj_t * ui_Label106;
+
 void ui_event_Button8(lv_event_t *e);
 void ui_event_Button5(lv_event_t *e);
 void ui_event_modebutton8(lv_event_t *e);
@@ -360,8 +359,18 @@ void ui_event_setuptimebutton(lv_event_t * e);
 extern lv_obj_t * ui_setuptimebutton;
 extern lv_obj_t * ui_BACKTOSETUP3;
 extern lv_obj_t * ui____initial_actions0;
-
-
+void ui_event_timeset(lv_event_t * e);
+void ui_event_confirm_time(lv_event_t * e);
+//SCREEN: ui_screen10
+void ui_Screen10_screen_init(void);
+extern lv_obj_t * ui_Screen10;
+extern lv_obj_t * ui_rollerseconds2;
+extern lv_obj_t * ui_secondslabel2;
+extern lv_obj_t * ui_minuteslabel2;
+extern lv_obj_t * ui_rollerminutes2;
+void ui_event_setuptimebutton2(lv_event_t * e);
+extern lv_obj_t * ui_BACKTOSETUP4;
+extern lv_obj_t * ui_setuptimebutton2;
 
 LV_IMG_DECLARE(ui_img_vector_png);    // assets/Vector.png
 LV_IMG_DECLARE(ui_img_vector2_png);    // assets/Vector2.png

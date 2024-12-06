@@ -5,7 +5,7 @@
 
 #include "ui.h"
 #include "ui_helpers.h"
-
+#include <stdio.h>
 
 
 ///////////////////// VARIABLES ////////////////////
@@ -16,6 +16,8 @@ void ui_Screen1_screen_init(void);
 lv_obj_t * ui_Screen1;
 lv_obj_t * ui_Panel1;
 lv_obj_t * ui_Panel2;
+lv_obj_t * ui_Label107;
+lv_obj_t * ui_Label108;
 void ui_event_starstopbutton(lv_event_t * e);
 lv_obj_t * ui_starstopbutton;
 lv_obj_t * ui_Label1;
@@ -217,6 +219,8 @@ lv_obj_t * ui_rollerseconds;
 lv_obj_t * ui_secondslabel2;
 lv_obj_t * ui_minuteslabel2;
 lv_obj_t * ui_rollerminutes;
+lv_obj_t * ui_Label105;
+lv_obj_t * ui_Label106;
 
 // SCREEN: ui_Screen5
 void ui_Screen5_screen_init(void);
@@ -353,11 +357,23 @@ void ui_event_setuptimebutton(lv_event_t * e);
 lv_obj_t * ui_setuptimebutton;
 lv_obj_t * ui_BACKTOSETUP3;
 lv_obj_t * ui____initial_actions0;
+void ui_event_timeset(lv_event_t * e);
+void ui_event_confirm_time(lv_event_t * e);
+//SCREEN: ui_Screen10
+void ui_Screen10_screen_init(void);
+lv_obj_t * ui_Screen10;
+lv_obj_t * ui_rollerseconds2;
+lv_obj_t * ui_secondslabel2;
+lv_obj_t * ui_minuteslabel2;
+lv_obj_t * ui_rollerminutes2;
+void ui_event_setuptimebutton2(lv_event_t * e);
+lv_obj_t * ui_setuptimebutton2;
+lv_obj_t * ui_BACKTOSETUP4; 
 
 const lv_img_dsc_t * ui_imgset_vector[1] = {&ui_img_vector2_png};
 const lv_img_dsc_t * ui_imgset_group_[1] = {&ui_img_group_8_png};
 const lv_img_dsc_t * ui_imgset_right_line[2] = {&ui_img_right_line1_png, &ui_img_right_line2_png};
-const lv_img_dsc_t * ui_imgset_left_line[1] = {&ui_img_left_line1_png,&ui_img_left_line2_png};
+const lv_img_dsc_t * ui_imgset_left_line[1] = {&ui_img_left_line1_png, &ui_img_left_line2_png};
 const lv_img_dsc_t * ui_imgset_rectangle_[1] = {&ui_img_rectangle_582_png};
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
@@ -448,7 +464,12 @@ void ui_event_modebutton6(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen4_screen_init);
+        if(lv_obj_has_flag(ui_modebutton7, LV_OBJ_FLAG_HIDDEN)){
+            _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen4_screen_init);
+        }else if(lv_obj_has_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN)){
+             _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
+        }
+        
     }
 }
 void ui_event_customsetupbutton(lv_event_t * e)
@@ -539,6 +560,9 @@ void ui_event_Button4(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Screen1, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen1_screen_init);
+         lv_label_set_text(ui_Label99, lv_label_get_text(ui_Label30));
+         lv_label_set_text(ui_Label107, lv_label_get_text(ui_Label105));
+         lv_label_set_text(ui_Label108, lv_label_get_text(ui_Label106));
     }
 }
 void ui_event_speedchange3(lv_event_t * e)
@@ -554,10 +578,10 @@ void ui_event_rotationbutton56(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_Panel5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Label5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Label6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Panel6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Panel19, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label32, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Label29, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_Panel9, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
     }
 }
 void ui_event_Button11(lv_event_t * e)
@@ -780,7 +804,18 @@ void ui_event_cleanbutton(lv_event_t *e)
 {
     lv_label_set_text(ui_Label9,"10");
 }
-void ui_event_modebutton8(lv_event_t *e);
+void ui_event_modebutton8(lv_event_t *e)
+{
+    
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED)
+    {
+        _ui_screen_change(&ui_Screen10, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen10_screen_init);
+    }
+
+
+}
 void ui_event_programbutton(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -832,7 +867,78 @@ void ui_event_programbutton6(lv_event_t * e)
     }
 }
 
+void ui_event_setuptimebutton2(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        char minutes_buf[16];
+        char seconds_buf[16];
 
+        // Get the selected text from the minutes roller
+        lv_roller_get_selected_str(ui_rollerminutes, minutes_buf, sizeof(minutes_buf));
+
+        // Get the selected text from the seconds roller
+        lv_roller_get_selected_str(ui_rollerseconds, seconds_buf, sizeof(seconds_buf));
+
+
+        lv_label_set_text(ui_Label105, minutes_buf);
+        lv_label_set_text(ui_Label106, seconds_buf);
+        _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen4_screen_init);
+    }
+}
+
+static lv_obj_t * g_current_time_button = NULL;
+
+
+void ui_event_timeset(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) { 
+        // Get the button that was pressed
+        lv_obj_t *target = lv_event_get_target(e);
+
+        // Store this button globally so we know which one to update later
+        g_current_time_button = target;
+
+        // Now change to Screen9
+        _ui_screen_change(&ui_Screen9, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen9_screen_init);
+    }
+}
+
+void ui_event_confirm_time(lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        if (g_current_time_button == NULL) {
+            // No button stored, can't update
+            return;
+        }
+
+        // Get selected roller values
+        char minutes_buf[16];
+        char seconds_buf[16];
+        lv_roller_get_selected_str(ui_rollerminutes, minutes_buf, sizeof(minutes_buf));
+        lv_roller_get_selected_str(ui_rollerseconds, seconds_buf, sizeof(seconds_buf));
+
+        // Format the chosen time as "MM:SS"
+        char final_time[32];
+        snprintf(final_time, sizeof(final_time), "%s:%s", minutes_buf, seconds_buf);
+
+        // Now decide which label to update based on which button was pressed
+        if (g_current_time_button == ui_time1button) {
+            lv_label_set_text(ui_time1, final_time);
+        } else if (g_current_time_button == ui_time1button2) {
+            lv_label_set_text(ui_time3, final_time);
+        } else if (g_current_time_button == ui_time1button3) {
+            lv_label_set_text(ui_time4, final_time);
+        }
+
+        // Return to the previous screen (ui_Screen8 for example)
+        _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
+
+        // Reset the global pointer
+        g_current_time_button = NULL;
+    }
+}
 
 
 
@@ -853,6 +959,7 @@ void ui_init(void)
     ui_Screen7_screen_init();
     ui_Screen8_screen_init();
     ui_Screen9_screen_init();
+    ui_Screen10_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_Screen1);
 }
