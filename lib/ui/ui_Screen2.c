@@ -488,7 +488,9 @@ lv_obj_add_event_cb(ui_modebutton2, ui_event_modebutton2, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Buttonrightline, ui_event_Buttonrightline, LV_EVENT_CLICKED, NULL);
 lv_obj_add_event_cb(ui_Buttonleftline, ui_event_Buttonleftline, LV_EVENT_CLICKED, NULL);
 lv_obj_add_event_cb(ui_cleanbutton, ui_event_cleanbutton, LV_EVENT_CLICKED, NULL);
+if(lv_obj_has_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN) && lv_obj_has_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN)){
+    lv_obj_add_event_cb(ui_eneterbutton, ui_event_confirm_speed, LV_EVENT_CLICKED, NULL);
+}else{
 lv_obj_add_event_cb(ui_eneterbutton, ui_event_entermode, LV_EVENT_CLICKED, NULL);
-
-
+}
 }

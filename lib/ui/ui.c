@@ -131,6 +131,7 @@ void ui_event_Buttonrightline(lv_event_t *e);
 void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
 void ui_event_entermode(lv_event_t * e);
+void ui_event_confirm_speed(lv_event_t *e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -346,6 +347,7 @@ void ui_event_speedbutton5(lv_event_t * e);
 lv_obj_t * ui_speedbutton5;
 lv_obj_t * ui_rpmlabel4;
 lv_obj_t * ui_rpmvalue4;
+void ui_event_speedset(lv_event_t *e);
 // SCREEN: ui_Screen9
 void ui_Screen9_screen_init(void);
 lv_obj_t * ui_Screen9;
@@ -392,6 +394,50 @@ void ui_event_errormesssage1(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     if(event_code == LV_EVENT_CLICKED){
         _ui_flag_modify(ui_messagePanel1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+
+static lv_obj_t *g_selected_speed_button = NULL;
+
+void ui_event_speedset(lv_event_t *e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_CLICKED) {
+        // Store which button was pressed
+        lv_obj_t *target = lv_event_get_target(e);
+        g_selected_speed_button = target;
+
+        // Now change to screen2 for speed selection
+        _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen2_screen_init);
+    }
+}
+
+void ui_event_confirm_speed(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_CLICKED) {
+        if (g_selected_speed_button == NULL) {
+            // No button was stored
+            return;
+        }
+
+        // Get the selected speed value from ui_Label9
+        const char *speedText = lv_label_get_text(ui_Label9);
+
+        // Update the corresponding rpm label on ui_Screen8
+        if (g_selected_speed_button == ui_speedbutton1) {
+            lv_label_set_text(ui_rpmvalue, speedText);
+        } else if (g_selected_speed_button == ui_speedbutton3) {
+            lv_label_set_text(ui_rpmvalue2, speedText);
+        } else if (g_selected_speed_button == ui_speedbutton4) {
+            lv_label_set_text(ui_rpmvalue3, speedText);
+        } else if (g_selected_speed_button == ui_speedbutton5) {
+            lv_label_set_text(ui_rpmvalue4, speedText);
+        }
+
+        // Go back to ui_Screen8
+        _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
+
+        // Reset the global pointer
+        g_selected_speed_button = NULL;
     }
 }
 
@@ -914,14 +960,14 @@ void ui_event_confirm_time(lv_event_t * e) {
         }
 
         // Get selected roller values
-        char minutes_buf[16];
-        char seconds_buf[16];
-        lv_roller_get_selected_str(ui_rollerminutes, minutes_buf, sizeof(minutes_buf));
-        lv_roller_get_selected_str(ui_rollerseconds, seconds_buf, sizeof(seconds_buf));
+        char minutes2_buf[16];
+        char seconds2_buf[16];
+        lv_roller_get_selected_str(ui_rollerminutes, minutes2_buf, sizeof(minutes2_buf));
+        lv_roller_get_selected_str(ui_rollerseconds, seconds2_buf, sizeof(seconds2_buf));
 
         // Format the chosen time as "MM:SS"
         char final_time[32];
-        snprintf(final_time, sizeof(final_time), "%s:%s", minutes_buf, seconds_buf);
+        snprintf(final_time, sizeof(final_time), "%s:%s", minutes2_buf, seconds2_buf);
 
         // Now decide which label to update based on which button was pressed
         if (g_current_time_button == ui_time1button) {
@@ -939,6 +985,8 @@ void ui_event_confirm_time(lv_event_t * e) {
         g_current_time_button = NULL;
     }
 }
+
+
 
 
 

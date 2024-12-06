@@ -144,6 +144,7 @@ void ui_event_Buttonrightline(lv_event_t *e);
 void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
 void ui_event_entermode(lv_event_t * e);
+void ui_event_confirm_speed(lv_event_t *e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -348,6 +349,7 @@ void ui_event_speedbutton5(lv_event_t * e);
 extern lv_obj_t * ui_speedbutton5;
 extern lv_obj_t * ui_rpmlabel4;
 extern lv_obj_t * ui_rpmvalue4;
+void ui_event_speedset(lv_event_t *e);
 // SCREEN: ui_Screen9
 void ui_Screen9_screen_init(void);
 extern lv_obj_t * ui_Screen9;
