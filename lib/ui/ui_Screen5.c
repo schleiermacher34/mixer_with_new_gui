@@ -87,25 +87,27 @@ void ui_Screen5_screen_init(void)
     lv_obj_set_style_text_font(ui_Label37, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Button10 = lv_btn_create(ui_Panel21);
-    lv_obj_set_width(ui_Button10, 132);
-    lv_obj_set_height(ui_Button10, 132);
+    lv_obj_set_width(ui_Button10, 152);
+    lv_obj_set_height(ui_Button10, 152);
     lv_obj_set_x(ui_Button10, 235);
     lv_obj_set_y(ui_Button10, -118);
     lv_obj_set_align(ui_Button10, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_Button10, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_clear_flag(ui_Button10, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_Button10, 250, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Button10, lv_color_hex(0x313841), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button10, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Button10, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_Button10, lv_color_hex(0xE4322E), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_Button10, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_Button10, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Panel24 = lv_obj_create(ui_Button10);
-    lv_obj_set_width(ui_Panel24, 116);
-    lv_obj_set_height(ui_Panel24, 116);
+    ui_Panel24 = lv_img_create(ui_Button10);
+    lv_img_set_src(ui_Panel24, &ui_img_galochka_png);
+    lv_obj_set_width(ui_Panel24, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_Panel24, LV_SIZE_CONTENT);
     lv_obj_set_align(ui_Panel24, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_Panel24, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_add_flag(ui_Panel24, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_radius(ui_Panel24, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Button11 = lv_btn_create(ui_Panel18);
@@ -180,5 +182,6 @@ void ui_Screen5_screen_init(void)
     lv_obj_set_style_text_font(ui_Label39, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_Button11, ui_event_Button11, LV_EVENT_ALL, NULL);
-
+    lv_obj_add_event_cb(ui_Button9, ui_event_Button9, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Button10, ui_event_Button10, LV_EVENT_ALL, NULL);
 }

@@ -249,11 +249,30 @@ void ui_Screen6_screen_init(void)
     lv_label_set_text(ui_Label46, "    Error\nmessages");
     lv_obj_set_style_text_font(ui_Label46, &lv_font_montserrat_32, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label47 = lv_label_create(ui_Screen6);
+    ui_serialbutton = lv_btn_create(ui_Screen6);
+    lv_obj_set_width(ui_serialbutton, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_serialbutton, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_serialbutton, 210);
+    lv_obj_set_y(ui_serialbutton, -171);
+    lv_obj_set_align(ui_serialbutton, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_serialbutton, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_clear_flag(ui_serialbutton, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_serialbutton, 2500, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_serialbutton, lv_color_hex(0x363A45), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_serialbutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_serialbutton, lv_color_hex(0xE4322E), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_serialbutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_serialbutton, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_color(ui_serialbutton, lv_color_hex(0x666D82), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_opa(ui_serialbutton, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_width(ui_serialbutton, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_spread(ui_serialbutton, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Label47 = lv_label_create(ui_serialbutton);
     lv_obj_set_width(ui_Label47, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label47, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label47, 210);
-    lv_obj_set_y(ui_Label47, -171);
+    lv_obj_set_x(ui_Label47, 0);
+    lv_obj_set_y(ui_Label47, 0);
     lv_obj_set_align(ui_Label47, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label47, "100000-13(S/N)");
     lv_obj_set_style_text_color(ui_Label47, lv_color_hex(0xE4322E), LV_PART_MAIN | LV_STATE_DEFAULT);

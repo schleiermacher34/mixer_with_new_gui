@@ -92,6 +92,8 @@ extern lv_obj_t * ui_messagePanel1;
 extern lv_obj_t * ui_messageLabel1;
 extern lv_obj_t * ui_messagebutoon1;
 extern lv_obj_t * ui_messagebutoon1label;
+extern lv_obj_t * ui_Label2222;
+extern lv_obj_t * ui_Label1111;
 // SCREEN: ui_Screen2
 void ui_Screen2_screen_init(void);
 extern lv_obj_t * ui_Screen2;
@@ -145,6 +147,7 @@ void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
 void ui_event_entermode(lv_event_t * e);
 void ui_event_confirm_speed(lv_event_t *e);
+void ui_event_ui_eneterbutton(lv_event_t * e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -247,6 +250,8 @@ extern lv_obj_t * ui_Label41;
 extern lv_obj_t * ui_Label38;
 extern lv_obj_t * ui_Label39;
 extern lv_obj_t * ui____initial_actions0;
+void ui_event_Button9(lv_event_t *e);
+void ui_event_Button10(lv_event_t * e);
 // SCREEN: ui_Screen6
 void ui_Screen6_screen_init(void);
 extern lv_obj_t * ui_Screen6;
@@ -258,6 +263,7 @@ extern lv_obj_t * ui_Label40;
 void ui_event_updatebutton(lv_event_t * e);
 extern lv_obj_t * ui_updatebutton;
 extern lv_obj_t * ui_Label43;
+extern  lv_obj_t * ui_serialbutton;
 void ui_event_Button12(lv_event_t * e);
 extern lv_obj_t * ui_Button12;
 extern lv_obj_t * ui_Panel27;
@@ -355,8 +361,8 @@ void ui_Screen9_screen_init(void);
 extern lv_obj_t * ui_Screen9;
 extern lv_obj_t * ui_minuteslabel;
 extern lv_obj_t * ui_secondslabel;
-extern lv_obj_t * ui_rollerminutes;
-extern lv_obj_t * ui_rollerseconds;
+extern lv_obj_t * ui_rollermin;
+extern lv_obj_t * ui_rollersec;
 void ui_event_setuptimebutton(lv_event_t * e);
 extern lv_obj_t * ui_setuptimebutton;
 extern lv_obj_t * ui_BACKTOSETUP3;
@@ -373,6 +379,9 @@ extern lv_obj_t * ui_rollerminutes2;
 void ui_event_setuptimebutton2(lv_event_t * e);
 extern lv_obj_t * ui_BACKTOSETUP4;
 extern lv_obj_t * ui_setuptimebutton2;
+//SCREEN: ui_Screen11
+void ui_Screen11_screen_init(void);
+extern lv_obj_t * ui_Screen11;
 
 LV_IMG_DECLARE(ui_img_vector_png);    // assets/Vector.png
 LV_IMG_DECLARE(ui_img_vector2_png);    // assets/Vector2.png

@@ -77,7 +77,8 @@ lv_obj_t * ui_messagePanel1;
 lv_obj_t * ui_messageLabel1;
 lv_obj_t * ui_messagebutoon1;
 lv_obj_t * ui_messagebutoon1label;
-
+lv_obj_t * ui_Label2222;
+lv_obj_t * ui_Label1111;
 
 // SCREEN: ui_Screen2
 void ui_Screen2_screen_init(void);
@@ -132,6 +133,7 @@ void ui_event_Buttonleftline(lv_event_t *e);
 void ui_event_cleanbutton(lv_event_t *e);
 void ui_event_entermode(lv_event_t * e);
 void ui_event_confirm_speed(lv_event_t *e);
+void ui_event_ui_eneterbutton(lv_event_t * e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -243,6 +245,8 @@ lv_obj_t * ui_Label41;
 lv_obj_t * ui_Label38;
 lv_obj_t * ui_Label39;
 lv_obj_t * ui____initial_actions0;
+void ui_event_Button9(lv_event_t *e);
+void ui_event_Button10(lv_event_t * e);
 
 // SCREEN: ui_Screen6
 void ui_Screen6_screen_init(void);
@@ -271,6 +275,7 @@ lv_obj_t * ui_Panel29;
 lv_obj_t * ui_Label48;
 lv_obj_t * ui_Label46;
 lv_obj_t * ui_Label47;
+lv_obj_t * ui_serialbutton;
 
 // SCREEN: ui_Screen7
 void ui_Screen7_screen_init(void);
@@ -353,8 +358,8 @@ void ui_Screen9_screen_init(void);
 lv_obj_t * ui_Screen9;
 lv_obj_t * ui_minuteslabel;
 lv_obj_t * ui_secondslabel;
-lv_obj_t * ui_rollerminutes2;
-lv_obj_t * ui_rollerseconds2;
+lv_obj_t * ui_rollermin;
+lv_obj_t * ui_rollersec;
 void ui_event_setuptimebutton(lv_event_t * e);
 lv_obj_t * ui_setuptimebutton;
 lv_obj_t * ui_BACKTOSETUP3;
@@ -371,6 +376,9 @@ lv_obj_t * ui_rollerminutes2;
 void ui_event_setuptimebutton2(lv_event_t * e);
 lv_obj_t * ui_setuptimebutton2;
 lv_obj_t * ui_BACKTOSETUP4; 
+//SCREEN: ui_Screen11
+void ui_Screen11_screen_init(void);
+lv_obj_t * ui_Screen11;
 
 const lv_img_dsc_t * ui_imgset_vector[1] = {&ui_img_vector2_png};
 const lv_img_dsc_t * ui_imgset_group_[1] = {&ui_img_group_8_png};
@@ -401,28 +409,33 @@ static lv_obj_t *g_selected_speed_button = NULL;
 
 void ui_event_speedset(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_CLICKED) {
-        // Store which button was pressed
+    if (code == LV_EVENT_CLICKED) {
+        // Store the button that triggered the event
         lv_obj_t *target = lv_event_get_target(e);
         g_selected_speed_button = target;
 
-        // Now change to screen2 for speed selection
+
+        // Change to Screen2
         _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen2_screen_init);
     }
 }
 
-void ui_event_confirm_speed(lv_event_t * e) {
+
+void ui_event_confirm_speed(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_CLICKED) {
+    if (code == LV_EVENT_CLICKED) {
         if (g_selected_speed_button == NULL) {
-            // No button was stored
             return;
         }
 
-        // Get the selected speed value from ui_Label9
+        // Get the selected speed value
         const char *speedText = lv_label_get_text(ui_Label9);
+        if (speedText == NULL) {
 
-        // Update the corresponding rpm label on ui_Screen8
+            return;
+        }
+
+        // Update the corresponding RPM label on Screen8
         if (g_selected_speed_button == ui_speedbutton1) {
             lv_label_set_text(ui_rpmvalue, speedText);
         } else if (g_selected_speed_button == ui_speedbutton3) {
@@ -431,15 +444,16 @@ void ui_event_confirm_speed(lv_event_t * e) {
             lv_label_set_text(ui_rpmvalue3, speedText);
         } else if (g_selected_speed_button == ui_speedbutton5) {
             lv_label_set_text(ui_rpmvalue4, speedText);
-        }
+        } 
 
-        // Go back to ui_Screen8
+        // Change back to Screen8
         _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
 
         // Reset the global pointer
         g_selected_speed_button = NULL;
     }
 }
+
 
 void ui_event_entermode(lv_event_t * e)
 {
@@ -456,19 +470,8 @@ void ui_event_entermode(lv_event_t * e)
     }
 }
 
-void ui_event_modebutton(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-    }
-}
+void ui_event_modebutton(lv_event_t *e) ;
+
 void ui_event_rotationbutton(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -488,15 +491,8 @@ void ui_event_speedchange(lv_event_t * e)
         _ui_screen_change(&ui_Screen2, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 15, 0, &ui_Screen2_screen_init);
     }
 }
-void ui_event_modebutton4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-}
+void ui_event_modebutton4(lv_event_t *e);
+
 void ui_event_modebutton5(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -534,20 +530,8 @@ void ui_event_settingsbutton(lv_event_t * e)
         _ui_screen_change(&ui_Screen6, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen6_screen_init);
     }
 }
-void ui_event_modebutton7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-    }
-}
+void ui_event_modebutton7(lv_event_t *e);
+
 void ui_event_modebutton2(lv_event_t * e);
 
 void ui_event_Button3(lv_event_t * e)
@@ -609,6 +593,7 @@ void ui_event_Button4(lv_event_t * e)
          lv_label_set_text(ui_Label99, lv_label_get_text(ui_Label30));
          lv_label_set_text(ui_Label107, lv_label_get_text(ui_Label105));
          lv_label_set_text(ui_Label108, lv_label_get_text(ui_Label106));
+         lv_label_set_text(ui_Label1111, lv_label_get_text(ui_Label37));
     }
 }
 void ui_event_speedchange3(lv_event_t * e)
@@ -636,6 +621,7 @@ void ui_event_Button11(lv_event_t * e)
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_Screen4, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen4_screen_init);
+        
     }
 }
 
@@ -773,29 +759,8 @@ void ui_event_Switch1(lv_event_t * e)
     }
 }
  void event_enterwifi_button(lv_event_t * e);
-void ui_event_passwordarea(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_passwordboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Checkbox1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Roller1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_wifissid, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_wifilabel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Switch1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-
-
-    }
-}
-void ui_event_okbutton(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    lv_obj_t * target = lv_event_get_target(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_passwordboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
+void ui_event_passwordarea(lv_event_t * e);
+void ui_event_okbutton(lv_event_t * e);
 void ui_event_backcustom(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -813,39 +778,9 @@ void ui_event_rotationbutton1(lv_event_t * e)
         _ui_flag_modify(ui_rotationdirection1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
     }
 }
-void ui_event_Buttonrightline(lv_event_t *e) {
-    // Get the current value of ui_Label9
-    const char *label_text = lv_label_get_text(ui_Label9);
-    int current_value = atoi(label_text);
+void ui_event_Buttonleftline(lv_event_t *e);
+void ui_event_Buttonrightline(lv_event_t *e);
 
-    // Define maximum value
-    int max_value = 60; // Adjust this based on your requirement
-
-    // Increment the value if it's below the maximum
-    if (current_value < max_value) {
-        current_value++;
-        char new_value[10];
-        snprintf(new_value, sizeof(new_value), "%d", current_value);
-        lv_label_set_text(ui_Label9, new_value); // Update the label
-    }
-}
-
-void ui_event_Buttonleftline(lv_event_t *e) {
-    // Get the current value of ui_Label9
-    const char *label_text = lv_label_get_text(ui_Label9);
-    int current_value = atoi(label_text);
-
-    // Define minimum value
-    int min_value = 10; // Adjust this based on your requirement
-
-    // Decrement the value if it's above the minimum
-    if (current_value > min_value) {
-        current_value--;
-        char new_value[10];
-        snprintf(new_value, sizeof(new_value), "%d", current_value);
-        lv_label_set_text(ui_Label9, new_value); // Update the label
-    }
-}
 void ui_event_cleanbutton(lv_event_t *e)
 {
     lv_label_set_text(ui_Label9,"10");
@@ -921,10 +856,10 @@ void ui_event_setuptimebutton2(lv_event_t * e)
         char seconds_buf[16];
 
         // Get the selected text from the minutes roller
-        lv_roller_get_selected_str(ui_rollerminutes, minutes_buf, sizeof(minutes_buf));
+        lv_roller_get_selected_str(ui_rollerminutes2, minutes_buf, sizeof(minutes_buf));
 
         // Get the selected text from the seconds roller
-        lv_roller_get_selected_str(ui_rollerseconds, seconds_buf, sizeof(seconds_buf));
+        lv_roller_get_selected_str(ui_rollerseconds2, seconds_buf, sizeof(seconds_buf));
 
 
         lv_label_set_text(ui_Label105, minutes_buf);
@@ -934,6 +869,48 @@ void ui_event_setuptimebutton2(lv_event_t * e)
 }
 
 static lv_obj_t * g_current_time_button = NULL;
+
+void ui_event_confirm_time(lv_event_t *e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if (event_code == LV_EVENT_CLICKED) {
+        if (g_current_time_button == NULL) {
+            printf("Error: No button selected.\n");
+            return;
+        }
+
+        char min_buf[16], sec_buf[16];
+        lv_roller_get_selected_str(ui_rollermin, min_buf, sizeof(min_buf));
+        lv_roller_get_selected_str(ui_rollersec, sec_buf, sizeof(sec_buf));
+        printf("Retrieved Roller Values - Minutes: %s, Seconds: %s\n", min_buf, sec_buf);
+
+        int minutes = atoi(min_buf);
+        int seconds = atoi(sec_buf);
+
+        if (minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+            printf("Error: Invalid values. Minutes: %d, Seconds: %d\n", minutes, seconds);
+            return;
+        }
+
+        char final_time[32];
+        snprintf(final_time, sizeof(final_time), "%02d:%02d", minutes, seconds);
+        printf("Final time: %s\n", final_time);
+
+        if (g_current_time_button == ui_time1button) {
+            lv_label_set_text(ui_time1, final_time);
+        } else if (g_current_time_button == ui_time1button2) {
+            lv_label_set_text(ui_time3, final_time);
+        } else if (g_current_time_button == ui_time1button3) {
+            lv_label_set_text(ui_time4, final_time);
+        } else {
+            printf("Error: Unknown button reference.\n");
+            return;
+        }
+
+        printf("Label updated successfully: %s\n", lv_label_get_text(ui_time1));
+        _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
+        g_current_time_button = NULL;
+    }
+}
 
 
 void ui_event_timeset(lv_event_t * e)
@@ -951,40 +928,33 @@ void ui_event_timeset(lv_event_t * e)
     }
 }
 
-void ui_event_confirm_time(lv_event_t * e) {
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_CLICKED) {
-        if (g_current_time_button == NULL) {
-            // No button stored, can't update
-            return;
-        }
+static int repeat_value = 1; // Variable to track the current value of ui_Label37
 
-        // Get selected roller values
-        char minutes2_buf[16];
-        char seconds2_buf[16];
-        lv_roller_get_selected_str(ui_rollerminutes, minutes2_buf, sizeof(minutes2_buf));
-        lv_roller_get_selected_str(ui_rollerseconds, seconds2_buf, sizeof(seconds2_buf));
+// Callback function for ui_Button9
+void ui_event_Button9(lv_event_t *e) {
+        lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED){
+    repeat_value++;
+    if (repeat_value > 5) {
+        repeat_value = 1; // Reset to 1 if it exceeds 5
+    }
 
-        // Format the chosen time as "MM:SS"
-        char final_time[32];
-        snprintf(final_time, sizeof(final_time), "%s:%s", minutes2_buf, seconds2_buf);
-
-        // Now decide which label to update based on which button was pressed
-        if (g_current_time_button == ui_time1button) {
-            lv_label_set_text(ui_time1, final_time);
-        } else if (g_current_time_button == ui_time1button2) {
-            lv_label_set_text(ui_time3, final_time);
-        } else if (g_current_time_button == ui_time1button3) {
-            lv_label_set_text(ui_time4, final_time);
-        }
-
-        // Return to the previous screen (ui_Screen8 for example)
-        _ui_screen_change(&ui_Screen8, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, &ui_Screen8_screen_init);
-
-        // Reset the global pointer
-        g_current_time_button = NULL;
+    // Convert the value to a string and update ui_Label37
+    char new_value[2];
+    snprintf(new_value, sizeof(new_value), "%d", repeat_value);
+    lv_label_set_text(ui_Label37, new_value);
     }
 }
+
+void ui_event_Button10(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    if(event_code == LV_EVENT_CLICKED){
+      _ui_flag_modify(ui_Panel24, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+    }
+}
+void ui_event_ui_eneterbutton(lv_event_t *e);
+
 
 
 
@@ -1008,6 +978,7 @@ void ui_init(void)
     ui_Screen8_screen_init();
     ui_Screen9_screen_init();
     ui_Screen10_screen_init();
+    ui_Screen11_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_Screen1);
 }
