@@ -77,6 +77,11 @@ SemaphoreHandle_t modbus_mutex;
 #define MODE_AUTO   1
 #define MODE_CUSTOM 2
 
+TaskHandle_t countdownTaskHandle = NULL; // Handle for the countdown task
+bool isCountdownActive = false;         // Flag to indicate if the countdown is running
+uint32_t countdownTime = 0;             // Time in seconds
+
+
 // Current mode variable
 uint8_t currentMode = MODE_MANUAL;  // Start with Manual mode
 
@@ -281,13 +286,143 @@ bool modbusCallback(Modbus::ResultCode event, uint16_t transactionId, void* data
     }
     return true;
 }
+// A simple helper function to show/hide your "running" vs. "stopped" UI elements.
+void updateUIForMotorState(bool running)
+{
+    if (running) {
+        // Motor is running: hide Label1/Image1, show Label2/Image2/Spinner
+        _ui_flag_modify(ui_Label1,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_Image1,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+
+        _ui_flag_modify(ui_Label2,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_Image2,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+    }
+    else {
+        // Motor is NOT running: show Label1/Image1, hide Label2/Image2/Spinner
+        _ui_flag_modify(ui_Label1,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_Image1,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+
+        _ui_flag_modify(ui_Label2,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_Image2,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    }
+}
+
 void stopMotor() {
-    uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, 0, modbusCallback);
+    // 1) Send Modbus command to stop the motor
+    uint16_t result = mb.writeHreg(1, 0x1FFF, 0, modbusCallback);
 
     if (result == 0) {
-        Serial.println("Motor stop command sent successfully.");
-    } else {
-        Serial.printf("Failed to send motor stop command. Modbus error: %d\n", result);
+        Serial.println("Motor stop command sent.");
+        is_motor_running = false;
+        updateUIForMotorState(false);  // <--- unify the UI here
+
+        // 2) If countdown is active, stop it and reset labels to 00:00
+        if (isCountdownActive) {
+            isCountdownActive = false;
+
+            lvgl_port_lock(-1);
+            // lv_label_set_text(ui_Label107, "00");  // Reset minutes
+            // lv_label_set_text(ui_Label108, "00");  // Reset seconds
+            lvgl_port_unlock();
+
+            Serial.println("Countdown was active, now stopped.");
+        }
+
+        // 3) (Optional) Hide “running” indicators, show “stopped” icons, etc.
+        _ui_flag_modify(ui_Label1,  LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    } 
+    else {
+        Serial.printf("Failed to send stop command. Modbus error: %d\n", result);
+    }
+}
+
+void startCountdownFromUI() {
+    // 1) Read minutes/seconds from the UI labels
+    const char* minutesText = lv_label_get_text(ui_Label107);
+    const char* secondsText = lv_label_get_text(ui_Label108);
+
+    uint32_t minutes = atoi(minutesText);
+    uint32_t seconds = atoi(secondsText);
+
+    // 2) Compute total time in seconds
+    countdownTime = (minutes * 60) + seconds;
+
+    // 3) Only start if non-zero
+    if (countdownTime > 0) {
+        isCountdownActive = true;
+
+        // Resume the countdown task (which is suspended otherwise)
+        if (countdownTaskHandle != NULL) {
+            vTaskResume(countdownTaskHandle);
+        }
+
+        Serial.printf("Countdown started for %u min, %u sec => %u total.\n", minutes, seconds, countdownTime);
+    }
+    else {
+        Serial.println("Invalid time (00:00). Countdown not started.");
+    }
+}
+
+void countdownTask(void *param) {
+    while (true) {
+        if (isCountdownActive) {
+            // Count down if there's time left
+            if (countdownTime > 0) {
+                // 1) Convert to minutes/seconds for display
+                uint32_t minutes = countdownTime / 60;
+                uint32_t seconds = countdownTime % 60;
+
+                // 2) Update the UI
+                lvgl_port_lock(-1);
+                char bufM[4], bufS[4];
+                snprintf(bufM, sizeof(bufM), "%02u", minutes);
+                snprintf(bufS, sizeof(bufS), "%02u", seconds);
+                lv_label_set_text(ui_Label107, bufM);
+                lv_label_set_text(ui_Label108, bufS);
+                lvgl_port_unlock();
+
+                // 3) Debug log
+                Serial.printf("Countdown: %02u:%02u\n", minutes, seconds);
+
+                // 4) Wait 1 second and decrement
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                countdownTime--;
+
+                // If motor was forcibly stopped from somewhere else
+                if (!is_motor_running) {
+                    // Cancel the countdown
+                    isCountdownActive = false;
+                    // Optionally reset UI to 00:00
+                    Serial.println("Countdown stopped (motor forced off).");
+                }
+            }
+            else {
+                // Time reached zero => stop the motor
+                Serial.println("Countdown finished => stopping motor.");
+                //stopMotor(); // will set isCountdownActive=false inside
+            }
+        }
+        else {
+            // If not active, suspend ourselves to save CPU
+            vTaskSuspend(NULL);
+        }
+    }
+}
+
+
+
+
+
+void startCountdown(uint32_t timeInSeconds) {
+    countdownTime = timeInSeconds;
+    isCountdownActive = true;
+
+    // Resume the countdown task
+    if (countdownTaskHandle != NULL) {
+        vTaskResume(countdownTaskHandle);
     }
 }
 
@@ -817,96 +952,62 @@ void runProgram(const ProgramData* program) {
 
 
 
-void event_handler_start_motor_button(lv_event_t * e) {
+void event_handler_start_motor_button(lv_event_t * e)
+{
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED) {
-
-        _ui_flag_modify(ui_Label1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Image1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Label2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Image2, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        _ui_flag_modify(ui_Spinner1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-
-        Serial.println("Start/Stop button pressed...");
-
-        // Determine the current mode based on UI elements
-        uint8_t newMode;
-        bool modebutton_hidden = lv_obj_has_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN);
-        bool modebutton4_hidden = lv_obj_has_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN);
-        bool modebutton7_hidden = lv_obj_has_flag(ui_modebutton7, LV_OBJ_FLAG_HIDDEN);
-
-        if (modebutton4_hidden && modebutton7_hidden && !modebutton_hidden) {
-            newMode = MODE_MANUAL;
-            Serial.println("Mode determined: Manual");
-        } else if (modebutton_hidden && modebutton7_hidden && !modebutton4_hidden) {
-            newMode = MODE_AUTO;
-            Serial.println("Mode determined: Auto");
-        } else if (modebutton_hidden && modebutton4_hidden && !modebutton7_hidden) {
-            newMode = MODE_CUSTOM;
-            Serial.println("Mode determined: Custom");
-        } else {
-            newMode = currentMode;
-            Serial.println("Mode could not be determined based on UI elements. Keeping previous mode.");
-        }
-
-        // Stop motor if mode changed
-        if (currentMode != newMode) {
-            stopMotor();
-            Serial.println("Motor stopped due to mode change.");
-            currentMode = newMode;
-        }
-
-        if (currentMode == MODE_AUTO) {
-            // Load and run the program
-            const char* programNumberText = lv_label_get_text(ui_Label35);
-            uint8_t programNumber = atoi(programNumberText);
-
-            if (programNumber == 0 || programNumber > MAX_PROGRAMS) {
-                Serial.println("Invalid program number.");
-                return;
-            }
-
-            // ProgramData program;
-            // esp_err_t err = loadProgramFromNVS(programNumber, &program);
-            // if (err == ESP_OK) {
-            //     runProgram(&program);
-            // } else {
-            //     Serial.printf("Failed to load program %d.\n", programNumber);
-            // }
-
-        } else if (currentMode == MODE_MANUAL) {
-            // Manual mode logic
-            uint16_t speed = getSpeedFromUI();
-            bool rotation = getRotationFromUI();
-
-            Serial.printf("Manual Mode: Speed=%d, Rotation=%s\n", speed, rotation ? "Forward" : "Reverse");
-
-            // Set rotation
-            uint16_t rotationValue = rotation ? 0 : 1;
-            uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_ROTATION, rotationValue, modbusCallback);
-            Serial.printf("Set rotation command result: %d\n", result);
-
-            // Set speed
-            result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_SPEED, speed, modbusCallback);
-            Serial.printf("Set speed command result: %d\n", result);
-
-            // Start motor
-            uint16_t commandValue = rotation ? 34 : 18;
-            result = mb.writeHreg(MODBUS_SLAVE_ID, VFD_REG_CONTROL, commandValue, modbusCallback);
-            Serial.printf("Start motor command result: %d\n", result);
-
-        } else if (currentMode == MODE_CUSTOM) {
-            // Load and run the custom program
-            CustomProgramData customData;
-            esp_err_t err = loadCustomProgramFromNVS(&customData);
-            if (err == ESP_OK) {
-                runCustomProgram(&customData);
-            } else {
-                Serial.println("Failed to load custom program.");
-            }
-        }
+    if (code != LV_EVENT_CLICKED) {
+        return; // Only handle clicks
     }
+
+    Serial.println("Start button pressed...");
+
+    // 1) Ensure we are in Manual Mode
+    if (currentMode != MODE_MANUAL) {
+        Serial.println("Error: Start button only works in manual mode.");
+        return;
+    }
+
+    // 2) Lock Modbus to prevent conflicts
+    xSemaphoreTake(modbus_mutex, portMAX_DELAY);
+
+    // 3) Get speed from UI (e.g., 0–60)
+    uint16_t speedVal = getSpeedFromUI(); // Your function to read from label/spinbox
+    // 4) Determine direction => forward = 18, reverse = 34
+    bool rotation = getRotationFromUI();  
+    uint16_t commandValue = rotation ? 18 : 34;
+
+    Serial.printf("Will write Speed=%u to 0x2001, then Start=0x%X to 0x2000\n",
+                  speedVal, commandValue);
+
+    // 5) Write speed first, if your drive requires a speed setpoint:
+    if (!mb.writeHreg(MODBUS_SLAVE_ID, 0x2001, speedVal, modbusCallback)) {
+        Serial.println("Failed to queue speed write command!");
+        updateUIForMotorState(false);
+        xSemaphoreGive(modbus_mutex);
+        return;
+    }
+
+    // (Optional) a small delay so we don't flood the request queue:
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    // 6) Send start (direction) command to 0x2000
+    uint16_t result = mb.writeHreg(MODBUS_SLAVE_ID, 0x2000, 34, modbusCallback);
+    if (result == 0) {
+        // '0' means queued successfully in Emelianov's library
+        Serial.printf("Start command queued: 0x%X\n", commandValue);
+        is_motor_running = true;
+        updateUIForMotorState(true);
+    } else {
+        Serial.printf("Failed to queue start command: Error=%d\n", result);
+        updateUIForMotorState(false);
+    }
+
+    // 7) Unlock Modbus
+    xSemaphoreGive(modbus_mutex);
 }
+
+
+
 
 
 
@@ -932,9 +1033,10 @@ void modbusLoopTask(void *pvParameters) {
         xSemaphoreTake(modbus_mutex, portMAX_DELAY);
         mb.task();
         xSemaphoreGive(modbus_mutex);
-        vTaskDelay(pdMS_TO_TICKS(10)); // Adjust delay as needed
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
+
 
 void wifi_connect_task(void *pvParameters) {
     while (1) {
@@ -1206,6 +1308,8 @@ void ui_event_modebutton3(lv_event_t *e) {
     }
 }
 
+
+
 void ui_event_ui_eneterbutton(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
@@ -1253,6 +1357,7 @@ void ui_event_modebutton2(lv_event_t *e)
     }
 }
 void setMode(uint8_t newMode) {
+    Serial.printf("Setting mode from %d to %d\n", currentMode, newMode);
     if (currentMode == newMode) {
         Serial.println("Mode is already set. No action required.");
         return;
@@ -1267,40 +1372,26 @@ void setMode(uint8_t newMode) {
 
     // Update current mode
     currentMode = newMode;
-    saveCurrentModeSettings();
+    saveCurrentModeSettings(); // Save mode to NVS
 
     // Update UI visibility for modes
+    Serial.printf("Updating UI for new mode: %d\n", newMode);
     lv_obj_add_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN);  // Hide Manual button by default
     lv_obj_add_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN); // Hide Auto button by default
     lv_obj_add_flag(ui_modebutton7, LV_OBJ_FLAG_HIDDEN); // Hide Custom button by default
 
-    switch (newMode) {
+    switch (currentMode) {
         case MODE_MANUAL:
             lv_obj_clear_flag(ui_modebutton, LV_OBJ_FLAG_HIDDEN); // Show Manual button
             Serial.println("Switched to Manual Mode");
-        _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
             break;
         case MODE_AUTO:
             lv_obj_clear_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN); // Show Auto button
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
             Serial.println("Switched to Auto Mode");
             break;
         case MODE_CUSTOM:
             lv_obj_clear_flag(ui_modebutton7, LV_OBJ_FLAG_HIDDEN); // Show Custom button
             Serial.println("Switched to Custom Mode");
-                    _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
             break;
         default:
             Serial.println("Unknown mode.");
@@ -1309,68 +1400,53 @@ void setMode(uint8_t newMode) {
 }
 
 
+
 #define DEBOUNCE_DELAY_MS 200  // Define a debounce delay in milliseconds
 
 static uint32_t lastModeSwitchTime = 0;  // Track last mode switch time
 
+// Function to cycle through modes
 void cycleMode() {
-    uint32_t currentTime = millis();
-    if (currentTime - lastModeSwitchTime < DEBOUNCE_DELAY_MS) {
-        return;  // Ignore if within debounce delay
-    }
-    lastModeSwitchTime = currentTime;
-
-    uint8_t nextMode;
-
-    // Determine the next mode
-    if (currentMode == MODE_MANUAL) {
-        nextMode = MODE_AUTO;
-    } else if (currentMode == MODE_AUTO) {
-        nextMode = MODE_CUSTOM;
-    } else if (currentMode == MODE_CUSTOM) {
-        nextMode = MODE_MANUAL;
-    } else {
-        nextMode = MODE_MANUAL;  // Default to Manual if currentMode is invalid
-    }
-
-    setMode(nextMode);  // Switch to the determined mode
+    currentMode = (currentMode + 1) % 3; // Cycles through 0 -> 1 -> 2 -> 0
+    setMode(currentMode); // Apply the new mode
 }
 
 void ui_event_modebutton(lv_event_t *e) {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-        cycleMode();
+        Serial.println("Mode button clicked. Testing direct mode setting.");
+        setMode(MODE_AUTO); // Directly test setting Auto mode
+        _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 
+
 void ui_event_modebutton4(lv_event_t *e) {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-        cycleMode();
+        setMode(MODE_CUSTOM); // Directly test setting Auto mode
+        lv_obj_clear_flag(ui_modebutton4, LV_OBJ_FLAG_HIDDEN); // Show Auto button
+        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
     }
 }
 
 void ui_event_modebutton7(lv_event_t *e) {
     if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-        cycleMode();
+        setMode(MODE_MANUAL); // Directly test setting Auto mode
+        _ui_flag_modify(ui_modebutton6, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_modebutton5, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_modebutton4, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        _ui_flag_modify(ui_modebutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_rotationbutton, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_speedchange, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+        _ui_flag_modify(ui_modebutton7, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 
-
-
-
-// 3. Add this helper function to initialize the mode at startup
-void initializeModeUI() {
-    Serial.printf("Initializing mode UI. CurrentMode: %d\n", currentMode);
-
-    if (currentMode == MODE_MANUAL) {
-        setMode(MODE_MANUAL);
-    } else if (currentMode == MODE_AUTO) {
-        setMode(MODE_AUTO);
-    } else if (currentMode == MODE_CUSTOM) {
-        setMode(MODE_CUSTOM);
-    } else {
-        Serial.println("Error: Invalid mode on initialization.");
-    }
-}
 
 
 
@@ -1455,8 +1531,6 @@ bool loadProgramData(uint8_t programNumber, ProgramData *programData) {
     err = nvs_get_blob(nvsHandle, key, programData, &dataSize);
     if (err == ESP_OK) {
         Serial.printf("Program %d loaded successfully from NVS.\n", programNumber);
-    } else if (err == ESP_ERR_NVS_NOT_FOUND) {
-        Serial.printf("Program %d not found in NVS.\n", programNumber);
     } else {
         Serial.printf("Error (%s) loading program data from NVS!\n", esp_err_to_name(err));
     }
@@ -1465,6 +1539,7 @@ bool loadProgramData(uint8_t programNumber, ProgramData *programData) {
     nvs_close(nvsHandle);
     return (err == ESP_OK);
 }
+
 
 void updateUIWithProgramData(const ProgramData *programData) {
     if (programData == nullptr || programData->stepCount == 0) {
@@ -1666,7 +1741,181 @@ void ui_event_serialbutton(lv_event_t *e) {
     }
 }
 
+// Global variables to store min and max RPM values
+uint16_t minRPM = MIN_SPEED_RPM;
+uint16_t maxRPM = MAX_SPEED_RPM;
 
+// Save RPM values to NVS
+void saveRPMValuesToNVS() {
+    nvs_handle_t nvsHandle;
+    esp_err_t err = nvs_open("rpm_data", NVS_READWRITE, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error opening NVS handle: %s\n", esp_err_to_name(err));
+        return;
+    }
+
+    err = nvs_set_u16(nvsHandle, "min_rpm", minRPM);
+    if (err == ESP_OK) {
+        err = nvs_set_u16(nvsHandle, "max_rpm", maxRPM);
+    }
+
+    if (err == ESP_OK) {
+        nvs_commit(nvsHandle);
+        Serial.println("RPM values saved to NVS.");
+    } else {
+        Serial.printf("Error saving RPM values to NVS: %s\n", esp_err_to_name(err));
+    }
+
+    nvs_close(nvsHandle);
+}
+
+// Load RPM values from NVS
+void loadRPMValuesFromNVS() {
+    nvs_handle_t nvsHandle;
+    esp_err_t err = nvs_open("rpm_data", NVS_READONLY, &nvsHandle);
+    if (err != ESP_OK) {
+        Serial.printf("Error opening NVS handle: %s\n", esp_err_to_name(err));
+        return;
+    }
+
+    err = nvs_get_u16(nvsHandle, "min_rpm", &minRPM);
+    if (err != ESP_OK) minRPM = MIN_SPEED_RPM;
+
+    err = nvs_get_u16(nvsHandle, "max_rpm", &maxRPM);
+    if (err != ESP_OK) maxRPM = MAX_SPEED_RPM;
+
+    nvs_close(nvsHandle);
+    Serial.printf("Loaded RPM values: Min=%u, Max=%u\n", minRPM, maxRPM);
+}
+
+// Event handler for incrementing min RPM
+void ui_event_Button85(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        if (minRPM < maxRPM - 1) {
+            minRPM++;
+            char buffer[10];
+            snprintf(buffer, sizeof(buffer), "%u", minRPM);
+            lv_label_set_text(ui_servicespeed, buffer);
+        }
+    }
+}
+
+// Event handler for decrementing min RPM
+void ui_event_Button86(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        if (minRPM > MIN_SPEED_RPM) {
+            minRPM--;
+            char buffer[10];
+            snprintf(buffer, sizeof(buffer), "%u", minRPM);
+            lv_label_set_text(ui_servicespeed, buffer);
+        }
+    }
+}
+
+// Event handler for incrementing max RPM
+void ui_event_Button55(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        if (maxRPM > minRPM + 1) {
+            maxRPM++;
+            char buffer[10];
+            snprintf(buffer, sizeof(buffer), "%u", maxRPM);
+            lv_label_set_text(ui_servicespeedmax, buffer);
+        }
+    }
+}
+
+// Event handler for decrementing max RPM
+void ui_event_Button56(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        if (maxRPM > MIN_SPEED_RPM) {
+            maxRPM--;
+            char buffer[10];
+            snprintf(buffer, sizeof(buffer), "%u", maxRPM);
+            lv_label_set_text(ui_servicespeedmax, buffer);
+        }
+    }
+}
+
+// Update UI on another screen
+void updateLabelsOnOtherScreen() {
+    char buffer[20];
+    snprintf(buffer, sizeof(buffer), "MIN\n  %u", minRPM);
+    lv_label_set_text(ui_Label8, buffer);
+
+    snprintf(buffer, sizeof(buffer), "MAX\n  %u", maxRPM);
+    lv_label_set_text(ui_Label10, buffer);
+}
+
+// Event handler for saving values and switching screens
+void ui_event_SaveAndSwitchButton(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        saveRPMValuesToNVS();
+        updateLabelsOnOtherScreen();
+        _ui_screen_change(&ui_Screen5, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, NULL);
+    }
+}
+
+void ui_event_cleanerbutton(lv_event_t * e)
+{
+     lv_event_code_t event_code = lv_event_get_code(e);
+    if (event_code == LV_EVENT_CLICKED) {
+        lv_label_set_text(ui_Label9, "0");
+        update_panel_colors(10, 60);
+    }
+}
+
+void ui_event_modebutton5(lv_event_t *e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if (event_code == LV_EVENT_CLICKED) {
+        Serial.println("Mode button 5 clicked. Changing Auto Mode program.");
+        _ui_screen_change(&ui_Screen3, LV_SCR_LOAD_ANIM_FADE_ON, 15, 0, NULL);
+
+        // Get the current program number from Auto Mode memory
+        const char *programNumberText = lv_label_get_text(ui_Label35); // Assuming ui_Label35 shows the current program number
+        uint8_t selectedProgramNumber = atoi(programNumberText);
+
+        if (selectedProgramNumber < 1 || selectedProgramNumber > MAX_PROGRAMS) {
+            Serial.printf("Invalid program number: %d\n", selectedProgramNumber);
+            return;
+        }
+
+        // Load the program data from Auto mode memory
+        ProgramData programData;
+        if (loadProgramData(selectedProgramNumber, &programData)) {
+            Serial.printf("Program %d loaded successfully.\n", selectedProgramNumber);
+
+            // Update UI elements with the program data
+            if (programData.stepCount > 0) {
+                const StepData &step = programData.steps[0];
+
+                // Update time in UI (minutes and seconds)
+                char minutesText[4], secondsText[4];
+                snprintf(minutesText, sizeof(minutesText), "%02u", step.time / 60);
+                snprintf(secondsText, sizeof(secondsText), "%02u", step.time % 60);
+                lv_label_set_text(ui_Label107, minutesText);
+                lv_label_set_text(ui_Label108, secondsText);
+
+                // Update speed value in UI
+                char speedText[8];
+                snprintf(speedText, sizeof(speedText), "%u", step.speed);
+                lv_label_set_text(ui_Label99, speedText);
+
+                // Update repeat count in UI
+                char repeatText[4];
+                snprintf(repeatText, sizeof(repeatText), "%u", step.repeats);
+                lv_label_set_text(ui_Label2222, repeatText);
+
+                Serial.printf("UI updated with Program %d data: Time=%02u:%02u, Speed=%u, Repeats=%u\n",
+                              selectedProgramNumber, step.time / 60, step.time % 60, step.speed, step.repeats);
+            } else {
+                Serial.printf("Program %d has no steps.\n", selectedProgramNumber);
+            }
+        } else {
+            Serial.printf("Failed to load program %d.\n", selectedProgramNumber);
+        }
+    }
+}
 
 void setup() {
     Serial.begin(115200);
@@ -1800,6 +2049,10 @@ lv_obj_add_event_cb(ui_modebutton, ui_event_modebutton, LV_EVENT_CLICKED, NULL);
 lv_obj_add_event_cb(ui_modebutton4, ui_event_modebutton4, LV_EVENT_CLICKED, NULL);
 lv_obj_add_event_cb(ui_modebutton7, ui_event_modebutton7, LV_EVENT_CLICKED, NULL);
 lv_obj_add_event_cb(ui_serialbutton, ui_event_serialbutton, LV_EVENT_CLICKED, NULL);
+lv_obj_add_event_cb(ui_Button85, ui_event_Button85, LV_EVENT_CLICKED, NULL);
+lv_obj_add_event_cb(ui_Button86, ui_event_Button86, LV_EVENT_CLICKED, NULL);
+lv_obj_add_event_cb(ui_Button55, ui_event_Button55, LV_EVENT_CLICKED, NULL);
+lv_obj_add_event_cb(ui_Button56, ui_event_Button56, LV_EVENT_CLICKED, NULL);
 
 
 
@@ -1825,12 +2078,14 @@ lv_obj_add_event_cb(ui_serialbutton, ui_event_serialbutton, LV_EVENT_CLICKED, NU
 
     mb.begin(&ModbusSerial, MODBUS_DE_RE_PIN); // Initialize Modbus with DE/RE pin
     mb.master(); // Set as Modbus master
-ModbusSerial.setTimeout(1000);
+ModbusSerial.setTimeout(100);
  nvs_mutex = xSemaphoreCreateMutex();
     /* Create tasks */
     xTaskCreate(wifi_connect_task, "WiFi Connect Task", 3072, NULL, 1, NULL);
     xTaskCreate(wifi_scan_task, "WiFi Scan Task", 3072, NULL, 1, NULL);
     xTaskCreate(modbusLoopTask, "Modbus Loop Task", 2048, NULL, 2, NULL);
+    xTaskCreate(countdownTask, "Countdown Task", 4096, NULL, 1, &countdownTaskHandle);
+
     // xTaskCreate(server_connection_task, "Server Connection Task", 16384, NULL, 1, NULL);
 
     // // Create the OTA update task
@@ -1840,8 +2095,9 @@ ModbusSerial.setTimeout(1000);
     // xTaskCreate(modbusTask, "Modbus Task", 4096, NULL, 2, NULL);
     // xTaskCreate(vfdReadTask, "VFD Read Task", 4096, NULL, 1, NULL);
 
-    /* Initialize Modbus Serial */
-    pinMode(MODBUS_DE_RE_PIN, OUTPUT);
+
+
+        pinMode(MODBUS_DE_RE_PIN, OUTPUT);
     digitalWrite(MODBUS_DE_RE_PIN, LOW); // Receiver enabled by default
 
     // Initialize Modbus serial port with new TX and RX pins
@@ -1853,6 +2109,14 @@ ModbusSerial.setTimeout(1000);
 
     mb.begin(&ModbusSerial, MODBUS_DE_RE_PIN); // Initialize Modbus with DE/RE pin
     mb.master(); // Set as Modbus master
+
+
+
+    // if (result == ESP_OK) {
+    //     Serial.println("Test start command sent successfully.");
+    // } else {
+    //     Serial.printf("Failed to send test start command. Error: %d\n", result);
+    // }
 
     Serial.println("Modbus initialized");
     Serial.println("Setup done");

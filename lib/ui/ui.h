@@ -148,6 +148,7 @@ void ui_event_cleanbutton(lv_event_t *e);
 void ui_event_entermode(lv_event_t * e);
 void ui_event_confirm_speed(lv_event_t *e);
 void ui_event_ui_eneterbutton(lv_event_t * e);
+void ui_event_cleanerbutton(lv_event_t * e);
 
 // SCREEN: ui_Screen3
 void ui_Screen3_screen_init(void);
@@ -382,6 +383,21 @@ extern lv_obj_t * ui_setuptimebutton2;
 //SCREEN: ui_Screen11
 void ui_Screen11_screen_init(void);
 extern lv_obj_t * ui_Screen11;
+extern lv_obj_t * ui_servicespeed;
+extern lv_obj_t * ui_servicespeedmax;
+extern lv_obj_t * ui_servicespeedtext;
+extern lv_obj_t * ui_servicespeedtext2;
+extern lv_obj_t * ui_Button85;
+extern lv_obj_t * ui_Image155;
+extern lv_obj_t * ui_Button55;
+extern lv_obj_t * ui_Image154;
+
+extern lv_obj_t * ui_Image156;
+extern lv_obj_t * ui_Button56;
+extern lv_obj_t * ui_Button86;
+extern lv_obj_t * ui_Image159;
+
+extern lv_obj_t * ui_SaveAndSwitchButton;
 
 LV_IMG_DECLARE(ui_img_vector_png);    // assets/Vector.png
 LV_IMG_DECLARE(ui_img_vector2_png);    // assets/Vector2.png
